@@ -1,6 +1,7 @@
-export function parseReport(reportText: string) {
+import { Report } from "../../models/Report";
+
+export function parseReport(reportText: string): Report {
   return {
-    message: "Report received successfully",
-    characterCount: reportText.length,
+    rawText: reportText,
   };
 }

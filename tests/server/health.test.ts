@@ -4,7 +4,7 @@ import app from "../../src/server/app.js";
 
 describe("GET /health", () => {
   it("returns a healthy status", async () => {
-    const response = await request(app).get("/health");
+    const response = await request(app).get("/api/health");
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
