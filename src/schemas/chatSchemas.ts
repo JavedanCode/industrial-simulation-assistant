@@ -4,7 +4,7 @@ export const chatMessageSchema = z.object({
   id: z.uuid(),
   role: z.enum(["user", "assistant"]),
   content: z.string().trim().min(1).max(10_000),
-  createdAt: z.string().datetime({ offset: true }),
+  createdAt: z.iso.datetime({ offset: true }),
 });
 
 export const chatRequestSchema = z.object({
