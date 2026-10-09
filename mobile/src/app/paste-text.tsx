@@ -16,41 +16,28 @@ export default function PasteTextScreen() {
   const { title, content, setTitle, setContent } = useReportDraft();
   const [error, setError] = useState("");
 
-  const [preview, setPreview] = useState<{
-    title: string;
-    content: String;
-  } | null>(null);
-
   const theme = useTheme();
 
   function handlePreview() {
     setError("");
-    setPreview(null);
 
-    const cleanedTitle = title.trim();
-    const cleanedContent = content.trim();
-
-    if (!cleanedContent) {
+    if (!content.trim()) {
       setError("Enter some report text first.");
       return;
     }
 
     if (title.length > Max_Title_Length) {
-      setError("Keep the title within ${Max_Title_Length} characters.");
+      setError(`Keep the title within ${Max_Title_Length} characters.`);
       return;
     }
 
     if (content.length > Max_Report_Length) {
-      setError("Keep the report within ${Max_Report_Length} characters.");
+      setError(`Keep the report within ${Max_Report_Length} characters.`);
       return;
     }
 
-    setPreview({
-      title: cleanedTitle || "Untitled report",
-      content: cleanedContent,
-    });
+    router.push("/report_preview");
   }
-
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView
@@ -96,7 +83,6 @@ export default function PasteTextScreen() {
             onChangeText={(text) => {
               setTitle(text);
               setError("");
-              setPreview(null);
             }}
             maxLength={Max_Title_Length}
             placeholder="Example: Weekly production report"
@@ -115,10 +101,9 @@ export default function PasteTextScreen() {
           <TextInput
             accessibilityLabel="Report text"
             value={content}
-            onChangeText={(Text) => {
-              setContent(Text);
+            onChangeText={(text) => {
+              setContent(text);
               setError("");
-              setPreview(null);
             }}
             placeholder="Type or paste your reports here..."
             placeholderTextColor={theme.textSecondary}
@@ -166,19 +151,6 @@ export default function PasteTextScreen() {
               Preview Report
             </ThemedText>
           </Pressable>
-          {preview && (
-            <ThemedView type="backgroundElement" style={styles.previewCard}>
-              <ThemedText type="smallBold">Report preview</ThemedText>
-
-              <ThemedText>{preview.title}</ThemedText>
-
-              <ThemedText selectable>{preview.content}</ThemedText>
-
-              <ThemedText type="small" themeColor="textSecondary">
-                Not Saved or sent for normalization
-              </ThemedText>
-            </ThemedView>
-          )}
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
@@ -226,10 +198,5 @@ const styles = StyleSheet.create({
   previewButtonText: {
     color: "#FFFFFF",
     fontWeight: "600",
-  },
-  previewCard: {
-    padding: 20,
-    gap: 12,
-    borderRadius: 12,
   },
 });
