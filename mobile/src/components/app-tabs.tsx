@@ -1,22 +1,23 @@
-import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { useColorScheme } from 'react-native';
+import { NativeTabs } from "expo-router/unstable-native-tabs";
+import { useColorScheme } from "react-native";
 
-import { Colors } from '@/constants/theme';
+import { Colors } from "@/constants/theme";
 
 export default function AppTabs() {
   const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  const colors = Colors[scheme === "unspecified" ? "light" : scheme];
 
   return (
     <NativeTabs
       labelVisibilityMode="labeled"
       backgroundColor={colors.background}
       indicatorColor={colors.backgroundElement}
-      labelStyle={{ selected: { color: colors.text } }}>
+      labelStyle={{ selected: { color: colors.text } }}
+    >
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/home.png')}
+          src={require("@/assets/images/tabIcons/home.png")}
           renderingMode="template"
         />
       </NativeTabs.Trigger>
@@ -24,7 +25,7 @@ export default function AppTabs() {
       <NativeTabs.Trigger name="reports">
         <NativeTabs.Trigger.Label>Reports</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/explore.png')}
+          src={require("@/assets/images/tabIcons/explore.png")}
           renderingMode="template"
         />
       </NativeTabs.Trigger>
@@ -32,15 +33,16 @@ export default function AppTabs() {
       <NativeTabs.Trigger name="simulations">
         <NativeTabs.Trigger.Label>Simulations</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/explore.png')}
+          src={require("@/assets/images/tabIcons/explore.png")}
           renderingMode="template"
         />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="settings">
         <NativeTabs.Trigger.Label>Settings</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon src={require("@/assets/images/tabIcons/explore.png")}
-        renderingMode='template'
+        <NativeTabs.Trigger.Icon
+          src={require("@/assets/images/tabIcons/explore.png")}
+          renderingMode="template"
         />
       </NativeTabs.Trigger>
     </NativeTabs>

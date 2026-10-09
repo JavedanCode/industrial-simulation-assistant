@@ -1,50 +1,47 @@
-import { router } from 'expo-router'
-import {Button, ScrollView, StyleSheet, Pressable} from "react-native"
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from "expo-router";
+import { Button, ScrollView, StyleSheet, Pressable } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { AnimatedIcon } from "@/components/animated-icon";
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
 
 export default function HomeScreen() {
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView
-      style={styles.container}
-      edges={["top", "left", "right"]}
-      >
+      <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
         <ScrollView contentContainerStyle={styles.content}>
           <ThemedView style={styles.heroSection}>
-            <AnimatedIcon/>
+            <AnimatedIcon />
 
-            <ThemedText type="subtitle" style={styles.centerText}>Report Assistant</ThemedText>
+            <ThemedText type="subtitle" style={styles.centerText}>
+              Report Assistant
+            </ThemedText>
 
             <ThemedText themeColor="textSecondary" style={styles.centerText}>
-              Start with a document or paste your reports text</ThemedText>
+              Start with a document or paste your reports text
+            </ThemedText>
           </ThemedView>
 
           <ThemedView type="backgroundElement" style={styles.actions}>
-              <ThemedText type="smallBold">Add a report</ThemedText>
+            <ThemedText type="smallBold">Add a report</ThemedText>
 
-              <Button
-                title="Upload document"
-                disabled
-                />
-                
-               <Pressable
-                accessibilityRole="button"
-                onPress={() => router.push('/paste-text')}
-                style={({ pressed }) => [
-                  styles.pasteButton,
-                  pressed && styles.buttonPressed,
-                ]}
-                >
-                  <ThemedText style={styles.pasteButtontext}>
-                    Paste text here
-                  </ThemedText>
-                </Pressable>
-            </ThemedView>
+            <Button title="Upload document" disabled />
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push("/paste-text")}
+              style={({ pressed }) => [
+                styles.pasteButton,
+                pressed && styles.buttonPressed,
+              ]}
+            >
+              <ThemedText style={styles.pasteButtontext}>
+                Paste text here
+              </ThemedText>
+            </Pressable>
+          </ThemedView>
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
@@ -63,28 +60,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.four,
     paddingBottom: BottomTabInset + Spacing.four,
-    gap: Spacing.five
+    gap: Spacing.five,
   },
   heroSection: {
     flexGrow: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: Spacing.four
+    gap: Spacing.four,
   },
-  centerText:{
+  centerText: {
     textAlign: "center",
   },
   actions: {
     padding: Spacing.four,
     gap: Spacing.three,
-    borderRadius: Spacing.four
+    borderRadius: Spacing.four,
   },
   pasteButton: {
     minHeight: 48,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: '#2563EB',
+    backgroundColor: "#2563EB",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -92,7 +89,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "600",
   },
-  buttonPressed:{
+  buttonPressed: {
     opacity: 0.8,
   },
 });

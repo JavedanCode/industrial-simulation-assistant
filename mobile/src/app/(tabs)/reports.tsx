@@ -7,14 +7,11 @@ import { ThemedView } from "@/components/themed-view";
 export default function ReportsScreen() {
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView
-      style={styles.content}
-      edges={['top','left','right']}
-      >
+      <SafeAreaView style={styles.content} edges={["top", "left", "right"]}>
         <ThemedText type="subtitle">Reports</ThemedText>
 
         <ThemedText>No reports yet.</ThemedText>
-        
+
         <ThemedText themeColor="textSecondary">
           Your saved reports and their analysis will appear here.
         </ThemedText>

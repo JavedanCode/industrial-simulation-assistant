@@ -7,10 +7,7 @@ import { ThemedView } from "@/components/themed-view";
 export default function SimulationsScreen() {
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView
-      style={styles.content}
-      edges={['top','left','right']}
-      >
+      <SafeAreaView style={styles.content} edges={["top", "left", "right"]}>
         <ThemedText type="subtitle">Simulations</ThemedText>
 
         <ThemedText themeColor="textSecondary">
