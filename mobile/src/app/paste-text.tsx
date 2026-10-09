@@ -8,7 +8,7 @@ import { ThemedView } from "@/components/themed-view";
 import { useTheme } from "@/hooks/use-theme";
 import { SymbolView } from "expo-symbols";
 
-const Max_Report_Length = 20_000;
+const Max_Report_Length = 10_000;
 const Max_Title_Length = 120;
 
 export default function PasteTextScreen(){
