@@ -1,19 +1,23 @@
 import { Request, Response } from "express";
+import { chatRequestSchema } from "../../schemas/chatSchemas.js";
 import { processMessage } from "../services/chatService.js";
 
 export function chatController(req: Request, res: Response): void {
-  const { message } = req.body;
+  const validation = chatRequestSchema.safeParse(req.body);
 
-  if (typeof message !== "string" || message.trim().length === 0) {
+  if (!validation.success) {
     res.status(400).json({
-      error: "message must be a non-empty string",
+      error: "Invalid chat request",
+      details: validation.error.issues.map((issue) => ({
+        path: issue.path.join("."),
+        message: issue.message,
+      })),
     });
     return;
   }
 
-  const response = processMessage(message);
+  const chatRequest = validation.data;
+  const response = processMessage(chatRequest.message.content);
 
-  res.json({
-    response,
-  });
+  res.json({ response });
 }
