@@ -17,7 +17,7 @@ export function chatController(req: Request, res: Response): void {
   }
 
   const chatRequest = validation.data;
-  const response = processMessage(chatRequest.message.content);
+  const response = processMessage(chatRequest);
 
   res.json({ response });
 }
