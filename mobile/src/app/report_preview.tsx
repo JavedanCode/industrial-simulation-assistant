@@ -1,7 +1,13 @@
 import { Redirect, router } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { Pressable, ScrollView, StyleSheet } from "react-native";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  ActivityIndicator,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useState } from "react";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
@@ -9,25 +15,41 @@ import { useReportDraft } from "@/features/reports/report_draft_context";
 import { useTheme } from "@/hooks/use-theme";
 import { submitReportDemo } from "@/features/reports/report_submission";
 
+type SubmissionStatus = "idle" | "submitting" | "success" | "error";
+
 export default function ReportPreviewScreen() {
   const { title, content } = useReportDraft();
   const theme = useTheme();
+  const [status, setStatus] = useState<SubmissionStatus>("idle");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const isSubmitting = status === "submitting";
+  const submitDisabled = isSubmitting || status === "success";
 
   if (!content.trim()) {
     return <Redirect href="/paste-text" />;
   }
 
   async function handlSubmit() {
-    console.log("Submitting Report...");
+    if (submitDisabled) {
+      return;
+    }
+
+    setStatus("submitting");
+    setErrorMsg("");
 
     try {
       await submitReportDemo({ title, content });
 
-      console.log("Demo succeeded. Nothing was sent or saved.");
+      setStatus("success");
     } catch (error) {
-      console.error(
-        error instanceof Error ? error.message : "Something went wrong",
+      setErrorMsg(
+        error instanceof Error
+          ? error.message
+          : "Something went wrong. Please try again.",
       );
+
+      setStatus("error");
     }
   }
 
@@ -89,11 +111,39 @@ export default function ReportPreviewScreen() {
 
           <Pressable
             accessibilityRole="button"
+            accessibilityState={{
+              disabled: submitDisabled,
+              busy: isSubmitting,
+            }}
+            disabled={submitDisabled}
             onPress={handlSubmit}
-            style={styles.submitButton}
+            style={({ pressed }) => [
+              styles.submitButton,
+              submitDisabled && styles.disabled,
+              pressed && styles.pressed,
+            ]}
           >
-            <ThemedText style={styles.submitText}>Submit report</ThemedText>
+            {isSubmitting && <ActivityIndicator color="#FFFFFF" />}
+            <ThemedText style={styles.submitText}>
+              {isSubmitting
+                ? "Submitting..."
+                : status === "error"
+                  ? "Try again"
+                  : status === "success"
+                    ? "Demo Completed"
+                    : "Submit report"}
+            </ThemedText>
           </Pressable>
+
+          {status === "error" && (
+            <ThemedText accessibilityRole="alert">{errorMsg}</ThemedText>
+          )}
+
+          {status === "success" && (
+            <ThemedText accessibilityLiveRegion="polite">
+              Demo completed successfuly. Nothing was sent or saved.
+            </ThemedText>
+          )}
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
@@ -129,6 +179,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   submitButton: {
+    flexDirection: "row",
+    gap: 8,
     minHeight: 48,
     padding: 12,
     borderRadius: 12,
@@ -142,5 +194,8 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.7,
+  },
+  disabled: {
+    opacity: 0.6,
   },
 });
