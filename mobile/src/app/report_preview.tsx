@@ -1,4 +1,4 @@
-import { Redirect, router } from "expo-router";
+import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import {
   Pressable,
@@ -18,7 +18,11 @@ import { submitReportDemo } from "@/features/reports/report_submission";
 type SubmissionStatus = "idle" | "submitting" | "success" | "error";
 
 export default function ReportPreviewScreen() {
-  const { title, content } = useReportDraft();
+  const { title, content, selectedDoc } = useReportDraft();
+
+  const { source } = useLocalSearchParams<{ source?: string }>();
+  const isDoc = source === "document";
+
   const theme = useTheme();
   const [status, setStatus] = useState<SubmissionStatus>("idle");
   const [errorMsg, setErrorMsg] = useState("");
@@ -26,7 +30,11 @@ export default function ReportPreviewScreen() {
   const isSubmitting = status === "submitting";
   const submitDisabled = isSubmitting || status === "success";
 
-  if (!content.trim()) {
+  if (isDoc && !selectedDoc) {
+    return <Redirect href="/" />;
+  }
+
+  if (!isDoc && !content.trim()) {
     return <Redirect href="/paste-text" />;
   }
 
@@ -39,7 +47,22 @@ export default function ReportPreviewScreen() {
     setErrorMsg("");
 
     try {
-      await submitReportDemo({ title, content });
+      if (isDoc) {
+        if (!selectedDoc) {
+          throw new Error("Select a document before submitting.");
+        }
+
+        await submitReportDemo({
+          source: "document",
+          document: selectedDoc,
+        });
+      } else {
+        await submitReportDemo({
+          source: "text",
+          title,
+          content,
+        });
+      }
 
       setStatus("success");
     } catch (error) {
@@ -56,6 +79,8 @@ export default function ReportPreviewScreen() {
   function handleEdit() {
     if (router.canGoBack()) {
       router.back();
+    } else if (isDoc) {
+      router.replace("/");
     } else {
       router.replace("/paste-text");
     }
@@ -88,10 +113,27 @@ export default function ReportPreviewScreen() {
           <ThemedView type="backgroundElement" style={styles.previewCard}>
             <ThemedText type="smallBold">Report Preview</ThemedText>
 
-            <ThemedText>{title.trim() || "Untitled report"}</ThemedText>
+            {isDoc && selectedDoc ? (
+              <>
+                <ThemedText type="smallBold">{selectedDoc.name}</ThemedText>
 
-            <ThemedText selectable>{content.trim()}</ThemedText>
+                <ThemedText themeColor="textSecondary">
+                  {selectedDoc.size !== undefined
+                    ? `${(selectedDoc.size / 1024).toFixed(1)} KB`
+                    : "File size unavailable"}
+                </ThemedText>
 
+                <ThemedText themeColor="textSecondary">
+                  Text extraction will happen after backend submission.
+                </ThemedText>
+              </>
+            ) : (
+              <>
+                <ThemedText>{title.trim() || "Untitled report"}</ThemedText>
+
+                <ThemedText selectable>{content.trim()}</ThemedText>
+              </>
+            )}
             <ThemedText type="small" themeColor="textSecondary">
               Not Saved or sent for normalization
             </ThemedText>
@@ -106,7 +148,9 @@ export default function ReportPreviewScreen() {
               pressed && styles.pressed,
             ]}
           >
-            <ThemedText>Edit report</ThemedText>
+            <ThemedText>
+              {isDoc ? " Change document" : "Edit report"}
+            </ThemedText>
           </Pressable>
 
           <Pressable
