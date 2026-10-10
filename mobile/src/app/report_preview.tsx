@@ -7,6 +7,7 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { useReportDraft } from "@/features/reports/report_draft_context";
 import { useTheme } from "@/hooks/use-theme";
+import { submitReportDemo } from "@/features/reports/report_submission";
 
 export default function ReportPreviewScreen() {
   const { title, content } = useReportDraft();
@@ -14,6 +15,20 @@ export default function ReportPreviewScreen() {
 
   if (!content.trim()) {
     return <Redirect href="/paste-text" />;
+  }
+
+  async function handlSubmit() {
+    console.log("Submitting Report...");
+
+    try {
+      await submitReportDemo({ title, content });
+
+      console.log("Demo succeeded. Nothing was sent or saved.");
+    } catch (error) {
+      console.error(
+        error instanceof Error ? error.message : "Something went wrong",
+      );
+    }
   }
 
   function handleEdit() {
@@ -74,8 +89,7 @@ export default function ReportPreviewScreen() {
 
           <Pressable
             accessibilityRole="button"
-            accessibilityState={{ disabled: true }}
-            disabled
+            onPress={handlSubmit}
             style={styles.submitButton}
           >
             <ThemedText style={styles.submitText}>Submit report</ThemedText>
@@ -119,7 +133,6 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 12,
     backgroundColor: "#2563EB",
-    opacity: 0.45,
     alignItems: "center",
     justifyContent: "center",
   },
