@@ -9,9 +9,12 @@ const Doc_Types = [
   "text/csv",
   "application/rtf",
   "text/rtf",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-excel.sheet.macroEnabled.12",
 ];
 
-const Doc_Extension = /\.(pdf|docx?|txt|md|csv|rtf)$/i;
+const Doc_Extension = /\.(pdf|docx?|txt|md|csv|rtf|xls|xlsx|xlsm)$/i;
 
 export async function pickDoc() {
   const result = await DocumentPicker.getDocumentAsync({
