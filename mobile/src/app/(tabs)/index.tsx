@@ -2,31 +2,16 @@ import { router } from "expo-router";
 import { ScrollView, StyleSheet, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useState } from "react";
-import * as DocumentPicker from "expo-document-picker";
 
 import { AnimatedIcon } from "@/components/animated-icon";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
 import { useReportDraft } from "@/features/reports/report_draft_context";
-import { prefetch } from "expo-router/build/global-state/router";
-
-const Doc_Types = [
-  "application/pdf",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "text/plain",
-  "text/markdown",
-  "text/csv",
-  "application/rtf",
-  "text/rtf",
-];
-
-const Doc_Extension = /\.(pdf|docx?|txt|md|csv|rtf)$/i;
+import { pickDoc } from "@/features/reports/pick_document";
 
 export default function HomeScreen() {
-  const { selectedDoc: selectedDoc, setSelectedDoc: setSelectedDoc } =
-    useReportDraft();
+  const { selectedDoc, setSelectedDoc } = useReportDraft();
 
   const [docError, setDocError] = useState("");
 
@@ -34,32 +19,17 @@ export default function HomeScreen() {
     setDocError("");
 
     try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: Doc_Types,
-        multiple: false,
-        copyToCacheDirectory: true,
-        base64: false,
-      });
+      const document = await pickDoc();
 
-      if (result.canceled) {
-        return;
+      if (document) {
+        setSelectedDoc(document);
       }
-
-      const document = result.assets[0];
-
-      if (!document) {
-        setDocError("No Document was selected.");
-        return;
-      }
-
-      if (!Doc_Extension.test(document.name)) {
-        setDocError("Not an allowed document type.");
-        return;
-      }
-
-      setSelectedDoc(document);
-    } catch {
-      setDocError("Could not open the document. Please try again.");
+    } catch (error) {
+      setDocError(
+        error instanceof Error
+          ? error.message
+          : "Could not open the document. Please try again.",
+      );
     }
   }
   return (

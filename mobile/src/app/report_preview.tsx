@@ -14,11 +14,12 @@ import { ThemedView } from "@/components/themed-view";
 import { useReportDraft } from "@/features/reports/report_draft_context";
 import { useTheme } from "@/hooks/use-theme";
 import { submitReportDemo } from "@/features/reports/report_submission";
+import { pickDoc } from "@/features/reports/pick_document";
 
 type SubmissionStatus = "idle" | "submitting" | "success" | "error";
 
 export default function ReportPreviewScreen() {
-  const { title, content, selectedDoc } = useReportDraft();
+  const { title, content, selectedDoc, setSelectedDoc } = useReportDraft();
 
   const { source } = useLocalSearchParams<{ source?: string }>();
   const isDoc = source === "document";
@@ -26,6 +27,7 @@ export default function ReportPreviewScreen() {
   const theme = useTheme();
   const [status, setStatus] = useState<SubmissionStatus>("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const [pickerError, setPickerError] = useState("");
 
   const isSubmitting = status === "submitting";
   const submitDisabled = isSubmitting || status === "success";
@@ -38,7 +40,7 @@ export default function ReportPreviewScreen() {
     return <Redirect href="/paste-text" />;
   }
 
-  async function handlSubmit() {
+  async function handleSubmit() {
     if (submitDisabled) {
       return;
     }
@@ -76,6 +78,32 @@ export default function ReportPreviewScreen() {
     }
   }
 
+  async function handleChangeDocument() {
+    if (isSubmitting) {
+      return;
+    }
+
+    setPickerError("");
+
+    try {
+      const document = await pickDoc();
+
+      if (!document) {
+        return;
+      }
+
+      setSelectedDoc(document);
+      setStatus("idle");
+      setErrorMsg("");
+    } catch (error) {
+      setPickerError(
+        error instanceof Error
+          ? error.message
+          : "Could not open the document. Please try again.",
+      );
+    }
+  }
+
   function handleEdit() {
     if (router.canGoBack()) {
       router.back();
@@ -92,7 +120,9 @@ export default function ReportPreviewScreen() {
         <ScrollView contentContainerStyle={styles.content}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Go back to edit report"
+            accessibilityLabel={
+              isDoc ? "Go back to Home" : "Go back to edit report"
+            }
             onPress={handleEdit}
             style={({ pressed }) => [
               styles.backButton,
@@ -141,17 +171,22 @@ export default function ReportPreviewScreen() {
 
           <Pressable
             accessibilityRole="button"
-            onPress={handleEdit}
+            accessibilityState={{ disabled: isSubmitting }}
+            disabled={isSubmitting}
+            onPress={isDoc ? handleChangeDocument : handleEdit}
             style={({ pressed }) => [
               styles.editButton,
               { borderColor: theme.textSecondary },
+              isSubmitting && styles.disabled,
               pressed && styles.pressed,
             ]}
           >
-            <ThemedText>
-              {isDoc ? " Change document" : "Edit report"}
-            </ThemedText>
+            <ThemedText>{isDoc ? "Change document" : "Edit report"}</ThemedText>
           </Pressable>
+
+          {pickerError !== "" && (
+            <ThemedText accessibilityRole="alert">{pickerError}</ThemedText>
+          )}
 
           <Pressable
             accessibilityRole="button"
@@ -160,7 +195,7 @@ export default function ReportPreviewScreen() {
               busy: isSubmitting,
             }}
             disabled={submitDisabled}
-            onPress={handlSubmit}
+            onPress={handleSubmit}
             style={({ pressed }) => [
               styles.submitButton,
               submitDisabled && styles.disabled,
@@ -185,7 +220,7 @@ export default function ReportPreviewScreen() {
 
           {status === "success" && (
             <ThemedText accessibilityLiveRegion="polite">
-              Demo completed successfuly. Nothing was sent or saved.
+              Demo completed successfully. Nothing was sent or saved.
             </ThemedText>
           )}
         </ScrollView>
