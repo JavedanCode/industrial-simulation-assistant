@@ -8,12 +8,16 @@ import { ThemedView } from "@/components/themed-view";
 import { MaxContentWidth } from "@/constants/theme";
 import { demoReports } from "@/features/reports/demo_reports";
 import { useTheme } from "@/hooks/use-theme";
+import { MsgBubble } from "@/features/reports/chat/msg_bubble";
+import { demoMessagesByReport } from "@/features/reports/demo-msgs";
 
 export default function ReportDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const theme = useTheme();
 
   const report = demoReports.find((item) => item.id === id);
+
+  const msgs = report ? (demoMessagesByReport[report.id] ?? []) : [];
 
   function handleBack() {
     if (router.canGoBack()) {
@@ -63,28 +67,41 @@ export default function ReportDetailsScreen() {
                 {report.source === "document" ? "Document" : "Pasted text"}
               </ThemedText>
 
-              <ThemedView type="backgroundElement" style={styles.card}>
-                <ThemedText type="smallBold">
-                  {report.status === "ready"
-                    ? "Analysis ready"
-                    : report.status === "processing"
+              {report.status === "ready" ? (
+                <ThemedView style={styles.conversation}>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    Demo conversation — fictional analysis and messages.
+                  </ThemedText>
+
+                  {msgs.length > 0 ? (
+                    msgs.map((message) => (
+                      <MsgBubble key={message.id} message={message} />
+                    ))
+                  ) : (
+                    <ThemedText themeColor="textSecondary">
+                      No conversation is available for this report yet.
+                    </ThemedText>
+                  )}
+                </ThemedView>
+              ) : (
+                <ThemedView type="backgroundElement" style={styles.card}>
+                  <ThemedText type="smallBold">
+                    {report.status === "processing"
                       ? "Processing"
                       : "Analysis failed"}
-                </ThemedText>
+                  </ThemedText>
 
-                <ThemedText>
-                  {report.status === "ready"
-                    ? "The report analysis and conversation will appear here."
-                    : report.status === "processing"
+                  <ThemedText>
+                    {report.status === "processing"
                       ? "This example represents a report waiting for analysis."
                       : "This example represents a report whose analysis failed."}
-                </ThemedText>
-              </ThemedView>
+                  </ThemedText>
 
-              <ThemedText type="small" themeColor="textSecondary">
-                Demo report. No real analysis or saved conversation is connected
-                yet.
-              </ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    Demo status. No backend request is running.
+                  </ThemedText>
+                </ThemedView>
+              )}
             </>
           ) : (
             <ThemedView style={styles.card}>
@@ -126,5 +143,8 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.7,
+  },
+  conversation: {
+    gap: 16,
   },
 });
