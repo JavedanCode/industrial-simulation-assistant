@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { Pressable, ScrollView, StyleSheet } from "react-native";
+import { Pressable, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
@@ -8,7 +8,7 @@ import { ThemedView } from "@/components/themed-view";
 import { MaxContentWidth } from "@/constants/theme";
 import { demoReports } from "@/features/reports/demo_reports";
 import { useTheme } from "@/hooks/use-theme";
-import { MsgBubble } from "@/features/reports/chat/msg_bubble";
+import { ReportChat } from "@/features/reports/chat/report_chat";
 import { demoMessagesByReport } from "@/features/reports/demo-msgs";
 
 export default function ReportDetailsScreen() {
@@ -30,7 +30,7 @@ export default function ReportDetailsScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.container}>
-        <ScrollView contentContainerStyle={styles.content}>
+        <ThemedView style={styles.content}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Back to reports"
@@ -53,7 +53,9 @@ export default function ReportDetailsScreen() {
 
           {report ? (
             <>
-              <ThemedText type="subtitle">{report.title}</ThemedText>
+              <ThemedText type="smallBold" numberOfLines={2}>
+                {report.title}
+              </ThemedText>
 
               <ThemedText themeColor="textSecondary">
                 {new Date(report.createdAt).toLocaleDateString(undefined, {
@@ -68,21 +70,7 @@ export default function ReportDetailsScreen() {
               </ThemedText>
 
               {report.status === "ready" ? (
-                <ThemedView style={styles.conversation}>
-                  <ThemedText type="small" themeColor="textSecondary">
-                    Demo conversation — fictional analysis and messages.
-                  </ThemedText>
-
-                  {msgs.length > 0 ? (
-                    msgs.map((message) => (
-                      <MsgBubble key={message.id} message={message} />
-                    ))
-                  ) : (
-                    <ThemedText themeColor="textSecondary">
-                      No conversation is available for this report yet.
-                    </ThemedText>
-                  )}
-                </ThemedView>
+                <ReportChat key={report.id} initialMsgs={msgs} />
               ) : (
                 <ThemedView type="backgroundElement" style={styles.card}>
                   <ThemedText type="smallBold">
@@ -112,7 +100,7 @@ export default function ReportDetailsScreen() {
               </ThemedText>
             </ThemedView>
           )}
-        </ScrollView>
+        </ThemedView>
       </SafeAreaView>
     </ThemedView>
   );
@@ -123,6 +111,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
+    flex: 1,
     width: "100%",
     maxWidth: MaxContentWidth,
     alignSelf: "center",
@@ -143,8 +132,5 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.7,
-  },
-  conversation: {
-    gap: 16,
   },
 });
