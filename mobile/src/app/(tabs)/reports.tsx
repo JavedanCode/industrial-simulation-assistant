@@ -1,5 +1,6 @@
-import { FlatList, StyleSheet } from "react-native";
+import { FlatList, StyleSheet, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { router } from "expo-router";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
@@ -30,7 +31,7 @@ function formatReportDate(value: string) {
 export default function ReportsScreen() {
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.content} edges={["top", "left", "right"]}>
+      <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
         <FlatList
           style={styles.container}
           contentContainerStyle={styles.content}
@@ -46,23 +47,35 @@ export default function ReportsScreen() {
             </ThemedView>
           }
           renderItem={({ item }) => (
-            <ThemedView type="backgroundElement" style={styles.reportCard}>
-              <ThemedText type="smallBold">{item.title}</ThemedText>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${item.title}`}
+              onPress={() =>
+                router.push({
+                  pathname: "/report/[id]",
+                  params: { id: item.id },
+                })
+              }
+              style={({ pressed }) => [pressed && styles.pressed]}
+            >
+              <ThemedView type="backgroundElement" style={styles.reportCard}>
+                <ThemedText type="smallBold">{item.title}</ThemedText>
 
-              <ThemedText type="small" themeColor="textSecondary">
-                {formatReportDate(item.createdAt)}
-              </ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {formatReportDate(item.createdAt)}
+                </ThemedText>
 
-              <ThemedText type="small" themeColor="textSecondary">
-                {item.source === "document" ? "Document" : "Pasted text"}
-              </ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {item.source === "document" ? "Document" : "Pasted text"}
+                </ThemedText>
 
-              <ThemedText type="smallBold">
-                {statusLabels[item.status]}
-              </ThemedText>
-            </ThemedView>
+                <ThemedText type="smallBold">
+                  {statusLabels[item.status]}
+                </ThemedText>
+              </ThemedView>
+            </Pressable>
           )}
-          ListFooterComponent={
+          ListEmptyComponent={
             <ThemedView style={styles.emptyState}>
               <ThemedText>No Reports Yet.</ThemedText>
 
@@ -101,5 +114,8 @@ const styles = StyleSheet.create({
   },
   emptyState: {
     gap: 8,
+  },
+  pressed: {
+    opacity: 0.7,
   },
 });

@@ -22,6 +22,8 @@ export default function RootLayout() {
             name="report_preview"
             options={{ headerShown: false }}
           />
+
+          <Stack.Screen name="report/[id]" options={{ headerShown: false }} />
         </Stack>
       </ReportDraftProvider>
     </ThemeProvider>
