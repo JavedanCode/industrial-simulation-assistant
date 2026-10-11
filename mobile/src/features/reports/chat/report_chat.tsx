@@ -1,8 +1,8 @@
 import { randomUUID } from "expo-crypto";
+import { SymbolView } from "expo-symbols";
 import { useRef, useState } from "react";
 import {
   FlatList,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   StyleSheet,
@@ -16,6 +16,8 @@ import type { chatMsg } from "./chat_types";
 import { MsgBubble } from "./msg_bubble";
 
 const MAX_MSG_LENGTH = 10_000;
+const MIN_INPUT_HEIGHT = 44;
+const MAX_INPUT_HEIGHT = 132;
 
 type ReportChatProps = {
   initialMsgs: chatMsg[];
@@ -26,8 +28,10 @@ export function ReportChat({ initialMsgs }: ReportChatProps) {
   const [msgs, setMsgs] = useState<chatMsg[]>(() => [...initialMsgs]);
   const [draft, setDraft] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [inputHeight, setInputHeight] = useState(MIN_INPUT_HEIGHT);
 
   const listRef = useRef<FlatList<chatMsg>>(null);
+  const scrollAfterSend = useRef(false);
   const canSend = draft.trim().length > 0 && draft.length <= MAX_MSG_LENGTH;
 
   function handleSend() {
@@ -51,8 +55,10 @@ export function ReportChat({ initialMsgs }: ReportChatProps) {
         createdAt: new Date().toISOString(),
       };
 
+      scrollAfterSend.current = true;
       setMsgs((previous) => [...previous, message]);
       setDraft("");
+      setInputHeight(MIN_INPUT_HEIGHT);
       setErrorMsg("");
     } catch {
       setErrorMsg("Could not add your message. Please try again.");
@@ -60,20 +66,7 @@ export function ReportChat({ initialMsgs }: ReportChatProps) {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={
-        Platform.OS === "ios"
-          ? "padding"
-          : Platform.OS === "android"
-            ? "height"
-            : undefined
-      }
-    >
-      <ThemedText type="small" themeColor="textSecondary">
-        Demo chat. Messages are not sent or saved.
-      </ThemedText>
-
+    <ThemedView style={styles.container}>
       <FlatList
         ref={listRef}
         style={styles.container}
@@ -82,42 +75,77 @@ export function ReportChat({ initialMsgs }: ReportChatProps) {
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <MsgBubble message={item} />}
         keyboardShouldPersistTaps="handled"
-        onContentSizeChange={() =>
-          listRef.current?.scrollToEnd({ animated: true })
-        }
+        keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+        onContentSizeChange={() => {
+          if (scrollAfterSend.current) {
+            scrollAfterSend.current = false;
+            listRef.current?.scrollToEnd({ animated: true });
+          }
+        }}
         ListEmptyComponent={
           <ThemedText themeColor="textSecondary">No messages yet.</ThemedText>
         }
       />
 
       <ThemedView style={styles.composer}>
-        <TextInput
-          accessibilityLabel="Message about this report"
-          placeholder="Ask about this report..."
-          placeholderTextColor={theme.textSecondary}
-          value={draft}
-          onChangeText={(text) => {
-            setDraft(text);
-            setErrorMsg("");
-          }}
-          multiline
-          scrollEnabled
-          maxLength={MAX_MSG_LENGTH}
-          textAlignVertical="top"
-          style={[
-            styles.input,
-            {
-              color: theme.text,
-              borderColor: theme.textSecondary,
-              backgroundColor: theme.backgroundElement,
-            },
-          ]}
-        />
-
-        <ThemedView style={styles.composerFooter}>
-          <ThemedText type="small" themeColor="textSecondary">
-            {draft.length.toLocaleString()} / 10,000
-          </ThemedText>
+        <ThemedView type="backgroundElement" style={styles.inputRow}>
+          <TextInput
+            accessibilityLabel="Message about this report"
+            placeholder="Ask about this report..."
+            placeholderTextColor={theme.textSecondary}
+            value={draft}
+            onChangeText={(text) => {
+              setDraft(text);
+              setErrorMsg("");
+            }}
+            multiline
+            enterKeyHint="send"
+            submitBehavior={Platform.OS === "web" ? undefined : "submit"}
+            onSubmitEditing={() => {
+              if (canSend) handleSend();
+            }}
+            onKeyPress={
+              Platform.OS === "web"
+                ? (event) => {
+                    // React Native Web exposes browser modifier/composition data.
+                    const keyEvent =
+                      event.nativeEvent as typeof event.nativeEvent & {
+                        shiftKey?: boolean;
+                        isComposing?: boolean;
+                        keyCode?: number;
+                        repeat?: boolean;
+                      };
+                    if (
+                      keyEvent.key === "Enter" &&
+                      !keyEvent.shiftKey &&
+                      !keyEvent.isComposing &&
+                      keyEvent.keyCode !== 229
+                    ) {
+                      event.preventDefault();
+                      if (canSend && !keyEvent.repeat) handleSend();
+                    }
+                  }
+                : undefined
+            }
+            scrollEnabled
+            onContentSizeChange={({ nativeEvent }) => {
+              setInputHeight(
+                Math.min(
+                  MAX_INPUT_HEIGHT,
+                  Math.max(MIN_INPUT_HEIGHT, nativeEvent.contentSize.height),
+                ),
+              );
+            }}
+            maxLength={MAX_MSG_LENGTH}
+            textAlignVertical="top"
+            style={[
+              styles.input,
+              {
+                color: theme.text,
+                height: inputHeight,
+              },
+            ]}
+          />
 
           <Pressable
             accessibilityRole="button"
@@ -131,13 +159,22 @@ export function ReportChat({ initialMsgs }: ReportChatProps) {
               pressed && styles.pressed,
             ]}
           >
-            <ThemedText style={styles.sendText}>Send</ThemedText>
+            <SymbolView
+              name={{
+                ios: "arrow.up",
+                android: "arrow_upward",
+                web: "arrow_upward",
+              }}
+              size={22}
+              tintColor="#FFFFFF"
+            />
           </Pressable>
         </ThemedView>
 
-        {draft.length === MAX_MSG_LENGTH && (
+        {draft.length >= MAX_MSG_LENGTH * 0.9 && (
           <ThemedText type="small" themeColor="textSecondary">
-            Message limit reached.
+            {draft.length.toLocaleString()} / 10,000
+            {draft.length === MAX_MSG_LENGTH ? " · Message limit reached." : ""}
           </ThemedText>
         )}
 
@@ -145,47 +182,48 @@ export function ReportChat({ initialMsgs }: ReportChatProps) {
           <ThemedText accessibilityRole="alert">{errorMsg}</ThemedText>
         )}
       </ThemedView>
-    </KeyboardAvoidingView>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    minHeight: 0,
   },
   messages: {
     paddingVertical: 16,
-    gap: 12,
+    paddingHorizontal: 20,
+    gap: 24,
   },
   composer: {
-    paddingTop: 12,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 8,
     gap: 8,
   },
   input: {
-    height: 96,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
+    flex: 1,
+    minWidth: 0,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     fontSize: 16,
+    lineHeight: 24,
   },
-  composerFooter: {
+  inputRow: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
+    alignItems: "flex-end",
+    padding: 6,
+    borderRadius: 28,
+    gap: 4,
   },
   sendButton: {
-    minHeight: 48,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
+    width: 44,
+    height: 44,
     backgroundColor: "#2563EB",
-    borderRadius: 12,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
-  },
-  sendText: {
-    color: "#FFFFFF",
-    fontWeight: "600",
   },
   disabled: {
     opacity: 0.5,
