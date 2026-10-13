@@ -15,7 +15,6 @@ import { MaxContentWidth } from "@/constants/theme";
 import { demoReports } from "@/features/reports/demo_reports";
 import { useTheme } from "@/hooks/use-theme";
 import { ReportChat } from "@/features/reports/chat/report_chat";
-import { demoMessagesByReport } from "@/features/reports/demo-msgs";
 
 export default function ReportDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -23,8 +22,6 @@ export default function ReportDetailsScreen() {
   const [showDetails, setShowDetails] = useState(false);
 
   const report = demoReports.find((item) => item.id === id);
-
-  const msgs = report ? (demoMessagesByReport[report.id] ?? []) : [];
 
   function handleBack() {
     if (router.canGoBack()) {
@@ -121,13 +118,14 @@ export default function ReportDetailsScreen() {
                         : "Pasted text"}
                     </ThemedText>
                     <ThemedText type="small" themeColor="textSecondary">
-                      Demo report and chat. Messages are not sent or saved.
+                      Demo chat. Kept while the app is running; not saved after
+                      restarting.
                     </ThemedText>
                   </ThemedView>
                 )}
 
                 {report.status === "ready" ? (
-                  <ReportChat key={report.id} initialMsgs={msgs} />
+                  <ReportChat key={report.id} reportId={report.id} />
                 ) : (
                   <ThemedView type="backgroundElement" style={styles.card}>
                     <ThemedText type="smallBold">

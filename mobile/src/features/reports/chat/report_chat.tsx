@@ -1,6 +1,5 @@
-import { randomUUID } from "expo-crypto";
 import { SymbolView } from "expo-symbols";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -15,27 +14,21 @@ import { ThemedView } from "@/components/themed-view";
 import { useTheme } from "@/hooks/use-theme";
 import type { chatMsg } from "./chat_types";
 import { MsgBubble } from "./msg_bubble";
-import { getDemoReply } from "./demo_chat_service";
+import { MAX_MSG_LENGTH, useReportChat } from "./report_chat_context";
 
-const MAX_MSG_LENGTH = 10_000;
 const MIN_INPUT_HEIGHT = 44;
 const MAX_INPUT_HEIGHT = 132;
-type ReplyStatus = "idle" | "loading" | "failed";
 
 type ReportChatProps = {
-  initialMsgs: chatMsg[];
+  reportId: string;
 };
 
-export function ReportChat({ initialMsgs }: ReportChatProps) {
+export function ReportChat({ reportId }: ReportChatProps) {
   const theme = useTheme();
-  const [msgs, setMsgs] = useState<chatMsg[]>(() => [...initialMsgs]);
-  const [draft, setDraft] = useState("");
-  const [errorMsg, setErrorMsg] = useState("");
+  const { getConversation, setDraft, sendMsg, retryMsg } = useReportChat();
+  const { msgs, draft, errorMsg, replyStatus, failedMsg } =
+    getConversation(reportId);
   const [inputHeight, setInputHeight] = useState(MIN_INPUT_HEIGHT);
-  const [replyStatus, setReplyStatus] = useState<ReplyStatus>("idle");
-  const [failedMsg, setFailedMsg] = useState<chatMsg | null>(null);
-  const requestRef = useRef<AbortController | null>(null);
-
   const listRef = useRef<FlatList<chatMsg>>(null);
   const scrollAfterSend = useRef(false);
   const canSend =
@@ -43,73 +36,10 @@ export function ReportChat({ initialMsgs }: ReportChatProps) {
     draft.trim().length > 0 &&
     draft.length <= MAX_MSG_LENGTH;
 
-  useEffect(() => {
-    return () => {
-      requestRef.current?.abort();
-    };
-  }, []);
-
-  async function requestReply(message: chatMsg, retry = false) {
-    // The ref locks immediately, before React renders the disabled button.
-    if (requestRef.current) return;
-    const controller = new AbortController();
-    requestRef.current = controller;
-    setReplyStatus("loading");
-    setFailedMsg(null);
-
-    try {
-      const content = await getDemoReply(message, {
-        signal: controller.signal,
-        retry,
-      });
-      if (controller.signal.aborted) return;
-      const reply: chatMsg = {
-        id: randomUUID(),
-        role: "assistant",
-        content,
-        createdAt: new Date().toISOString(),
-      };
-      setMsgs((previous) => [...previous, reply]);
-      setReplyStatus("idle");
-    } catch {
-      if (controller.signal.aborted) return;
-      setFailedMsg(message);
-      setReplyStatus("failed");
-    } finally {
-      if (requestRef.current === controller) requestRef.current = null;
-    }
-  }
-
   function handleSend() {
-    if (requestRef.current || replyStatus !== "idle") return;
-    const content = draft.trim();
-
-    if (!content) {
-      setErrorMsg("Enter a message first.");
-      return;
-    }
-
-    if (draft.length > MAX_MSG_LENGTH) {
-      setErrorMsg("Your message cannot exceed 10,000 characters.");
-      return;
-    }
-
-    try {
-      const message: chatMsg = {
-        id: randomUUID(),
-        role: "user",
-        content,
-        createdAt: new Date().toISOString(),
-      };
-
+    if (sendMsg(reportId)) {
       scrollAfterSend.current = true;
-      setMsgs((previous) => [...previous, message]);
-      setDraft("");
       setInputHeight(MIN_INPUT_HEIGHT);
-      setErrorMsg("");
-      void requestReply(message);
-    } catch {
-      setErrorMsg("Could not add your message. Please try again.");
     }
   }
 
@@ -158,7 +88,7 @@ export function ReportChat({ initialMsgs }: ReportChatProps) {
               accessibilityRole="button"
               accessibilityLabel="Retry failed message"
               onPress={() => {
-                void requestReply(failedMsg, true);
+                retryMsg(reportId);
               }}
               style={({ pressed }) => [
                 styles.retryButton,
@@ -177,8 +107,7 @@ export function ReportChat({ initialMsgs }: ReportChatProps) {
             placeholderTextColor={theme.textSecondary}
             value={draft}
             onChangeText={(text) => {
-              setDraft(text);
-              setErrorMsg("");
+              setDraft(reportId, text);
             }}
             multiline
             enterKeyHint="send"
