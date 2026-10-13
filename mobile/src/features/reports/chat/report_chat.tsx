@@ -25,8 +25,17 @@ type ReportChatProps = {
 
 export function ReportChat({ reportId }: ReportChatProps) {
   const theme = useTheme();
-  const { getConversation, setDraft, sendMsg, retryMsg } = useReportChat();
-  const { msgs, draft, errorMsg, replyStatus, failedMsg } =
+  const {
+    getConversation,
+    setDraft,
+    sendMsg,
+    retryMsg,
+    storageStatus,
+    saveErrors,
+    retryLoad,
+    retrySave,
+  } = useReportChat();
+  const { msgs, draft, errorMsg, replyStatus, failedMsg, pendingMsgId } =
     getConversation(reportId);
   const [inputHeight, setInputHeight] = useState(MIN_INPUT_HEIGHT);
   const listRef = useRef<FlatList<chatMsg>>(null);
@@ -41,6 +50,36 @@ export function ReportChat({ reportId }: ReportChatProps) {
       scrollAfterSend.current = true;
       setInputHeight(MIN_INPUT_HEIGHT);
     }
+  }
+
+  if (storageStatus !== "ready") {
+    return (
+      <ThemedView style={styles.storageState}>
+        {storageStatus === "loading" ? (
+          <>
+            <ActivityIndicator color={theme.textSecondary} />
+            <ThemedText>Loading conversation…</ThemedText>
+          </>
+        ) : (
+          <>
+            <ThemedText accessibilityRole="alert">
+              {Platform.OS === "web"
+                ? "Chat storage is available on Android and iOS. Open this app on your phone to use saved chats."
+                : "Couldn’t load saved chats."}
+            </ThemedText>
+            {Platform.OS !== "web" && (
+              <Pressable
+                accessibilityRole="button"
+                onPress={retryLoad}
+                style={styles.retryButton}
+              >
+                <ThemedText type="smallBold">Retry</ThemedText>
+              </Pressable>
+            )}
+          </>
+        )}
+      </ThemedView>
+    );
   }
 
   return (
@@ -66,6 +105,26 @@ export function ReportChat({ reportId }: ReportChatProps) {
       />
 
       <ThemedView style={styles.composer}>
+        {Platform.OS === "web" && (
+          <ThemedText type="small" themeColor="textSecondary">
+            Browser demo: chats reset on refresh. Device saving is available on
+            Android and iOS.
+          </ThemedText>
+        )}
+        {saveErrors[reportId] && (
+          <ThemedView style={styles.replyError}>
+            <ThemedText type="small" accessibilityRole="alert">
+              Changes haven’t been saved on this device.
+            </ThemedText>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => retrySave(reportId)}
+              style={styles.retryButton}
+            >
+              <ThemedText type="smallBold">Retry save</ThemedText>
+            </Pressable>
+          </ThemedView>
+        )}
         {replyStatus === "loading" && (
           <ThemedView style={styles.replyStatus}>
             <ActivityIndicator size="small" color={theme.textSecondary} />
@@ -81,8 +140,9 @@ export function ReportChat({ reportId }: ReportChatProps) {
         {replyStatus === "failed" && failedMsg && (
           <ThemedView style={styles.replyError}>
             <ThemedText type="small" accessibilityRole="alert">
-              Couldn’t get a reply. Your message is still here. Retry to
-              continue.
+              {pendingMsgId
+                ? "The previous reply was interrupted. Retry to continue."
+                : "Couldn’t get a reply. Your message is still here. Retry to continue."}
             </ThemedText>
             <Pressable
               accessibilityRole="button"
@@ -198,6 +258,13 @@ export function ReportChat({ reportId }: ReportChatProps) {
 }
 
 const styles = StyleSheet.create({
+  storageState: {
+    flex: 1,
+    padding: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 12,
+  },
   container: {
     flex: 1,
     minHeight: 0,

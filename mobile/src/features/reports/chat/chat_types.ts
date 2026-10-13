@@ -4,3 +4,14 @@ export type chatMsg = {
   content: string;
   createdAt: string;
 };
+
+export type ReportConversation = {
+  msgs: chatMsg[];
+  draft: string;
+  errorMsg: string;
+  replyStatus: "idle" | "loading" | "failed";
+  failedMsg: chatMsg | null;
+  pendingMsgId: string | null;
+};
+
+export type Conversations = Partial<Record<string, ReportConversation>>;

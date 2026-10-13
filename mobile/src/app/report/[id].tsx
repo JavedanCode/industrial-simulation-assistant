@@ -118,8 +118,9 @@ export default function ReportDetailsScreen() {
                         : "Pasted text"}
                     </ThemedText>
                     <ThemedText type="small" themeColor="textSecondary">
-                      Demo chat. Kept while the app is running; not saved after
-                      restarting.
+                      {Platform.OS === "web"
+                        ? "Browser demo: chats reset on refresh. Replies are simulated."
+                        : "Chats are saved on this device when storage is available. Replies are simulated; nothing is sent to a server."}
                     </ThemedText>
                   </ThemedView>
                 )}
