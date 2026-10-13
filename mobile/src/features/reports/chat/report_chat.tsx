@@ -1,7 +1,8 @@
 import { randomUUID } from "expo-crypto";
 import { SymbolView } from "expo-symbols";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   Platform,
   Pressable,
@@ -14,10 +15,12 @@ import { ThemedView } from "@/components/themed-view";
 import { useTheme } from "@/hooks/use-theme";
 import type { chatMsg } from "./chat_types";
 import { MsgBubble } from "./msg_bubble";
+import { getDemoReply } from "./demo_chat_service";
 
 const MAX_MSG_LENGTH = 10_000;
 const MIN_INPUT_HEIGHT = 44;
 const MAX_INPUT_HEIGHT = 132;
+type ReplyStatus = "idle" | "loading" | "failed";
 
 type ReportChatProps = {
   initialMsgs: chatMsg[];
@@ -29,12 +32,56 @@ export function ReportChat({ initialMsgs }: ReportChatProps) {
   const [draft, setDraft] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [inputHeight, setInputHeight] = useState(MIN_INPUT_HEIGHT);
+  const [replyStatus, setReplyStatus] = useState<ReplyStatus>("idle");
+  const [failedMsg, setFailedMsg] = useState<chatMsg | null>(null);
+  const requestRef = useRef<AbortController | null>(null);
 
   const listRef = useRef<FlatList<chatMsg>>(null);
   const scrollAfterSend = useRef(false);
-  const canSend = draft.trim().length > 0 && draft.length <= MAX_MSG_LENGTH;
+  const canSend =
+    replyStatus === "idle" &&
+    draft.trim().length > 0 &&
+    draft.length <= MAX_MSG_LENGTH;
+
+  useEffect(() => {
+    return () => {
+      requestRef.current?.abort();
+    };
+  }, []);
+
+  async function requestReply(message: chatMsg, retry = false) {
+    // The ref locks immediately, before React renders the disabled button.
+    if (requestRef.current) return;
+    const controller = new AbortController();
+    requestRef.current = controller;
+    setReplyStatus("loading");
+    setFailedMsg(null);
+
+    try {
+      const content = await getDemoReply(message, {
+        signal: controller.signal,
+        retry,
+      });
+      if (controller.signal.aborted) return;
+      const reply: chatMsg = {
+        id: randomUUID(),
+        role: "assistant",
+        content,
+        createdAt: new Date().toISOString(),
+      };
+      setMsgs((previous) => [...previous, reply]);
+      setReplyStatus("idle");
+    } catch {
+      if (controller.signal.aborted) return;
+      setFailedMsg(message);
+      setReplyStatus("failed");
+    } finally {
+      if (requestRef.current === controller) requestRef.current = null;
+    }
+  }
 
   function handleSend() {
+    if (requestRef.current || replyStatus !== "idle") return;
     const content = draft.trim();
 
     if (!content) {
@@ -60,6 +107,7 @@ export function ReportChat({ initialMsgs }: ReportChatProps) {
       setDraft("");
       setInputHeight(MIN_INPUT_HEIGHT);
       setErrorMsg("");
+      void requestReply(message);
     } catch {
       setErrorMsg("Could not add your message. Please try again.");
     }
@@ -88,6 +136,40 @@ export function ReportChat({ initialMsgs }: ReportChatProps) {
       />
 
       <ThemedView style={styles.composer}>
+        {replyStatus === "loading" && (
+          <ThemedView style={styles.replyStatus}>
+            <ActivityIndicator size="small" color={theme.textSecondary} />
+            <ThemedText
+              type="small"
+              themeColor="textSecondary"
+              accessibilityLiveRegion="polite"
+            >
+              Analyzing… (demo)
+            </ThemedText>
+          </ThemedView>
+        )}
+        {replyStatus === "failed" && failedMsg && (
+          <ThemedView style={styles.replyError}>
+            <ThemedText type="small" accessibilityRole="alert">
+              Couldn’t get a reply. Your message is still here. Retry to
+              continue.
+            </ThemedText>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Retry failed message"
+              onPress={() => {
+                void requestReply(failedMsg, true);
+              }}
+              style={({ pressed }) => [
+                styles.retryButton,
+                { backgroundColor: theme.backgroundElement },
+                pressed && styles.pressed,
+              ]}
+            >
+              <ThemedText type="smallBold">Retry</ThemedText>
+            </Pressable>
+          </ThemedView>
+        )}
         <ThemedView type="backgroundElement" style={styles.inputRow}>
           <TextInput
             accessibilityLabel="Message about this report"
@@ -201,6 +283,24 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 8,
     gap: 8,
+  },
+  replyStatus: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+  replyError: {
+    paddingHorizontal: 12,
+    gap: 8,
+  },
+  retryButton: {
+    alignSelf: "flex-start",
+    minHeight: 44,
+    paddingHorizontal: 16,
+    justifyContent: "center",
+    borderRadius: 12,
   },
   input: {
     flex: 1,
