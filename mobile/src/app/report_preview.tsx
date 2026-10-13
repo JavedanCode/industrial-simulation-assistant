@@ -5,21 +5,27 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { useReportDraft } from "@/features/reports/report_draft_context";
 import { useTheme } from "@/hooks/use-theme";
-import { submitReportDemo } from "@/features/reports/report_submission";
+import { useReports } from "@/features/reports/reports_context";
 import { pickDoc } from "@/features/reports/pick_document";
 
 type SubmissionStatus = "idle" | "submitting" | "success" | "error";
 
 export default function ReportPreviewScreen() {
-  const { title, content, selectedDoc, setSelectedDoc } = useReportDraft();
+  const { title, content, selectedDoc, setSelectedDoc, clearDraft } =
+    useReportDraft();
+
+  const { createReport, status: storageStatus, retryLoad } = useReports();
+  const savingRef = useRef(false);
+  const [savedId, setSavedId] = useState<string | null>(null);
 
   const { source } = useLocalSearchParams<{ source?: string }>();
   const isDoc = source === "document";
@@ -30,7 +36,13 @@ export default function ReportPreviewScreen() {
   const [pickerError, setPickerError] = useState("");
 
   const isSubmitting = status === "submitting";
-  const submitDisabled = isSubmitting || status === "success";
+  const submitDisabled =
+    isSubmitting || status === "success" || storageStatus !== "ready";
+
+  if (savedId)
+    return (
+      <Redirect href={{ pathname: "/report/[id]", params: { id: savedId } }} />
+    );
 
   if (isDoc && !selectedDoc) {
     return <Redirect href="/" />;
@@ -41,31 +53,23 @@ export default function ReportPreviewScreen() {
   }
 
   async function handleSubmit() {
-    if (submitDisabled) {
+    if (submitDisabled || savingRef.current) {
       return;
     }
 
+    savingRef.current = true;
     setStatus("submitting");
     setErrorMsg("");
 
     try {
-      if (isDoc) {
-        if (!selectedDoc) {
-          throw new Error("Select a document before submitting.");
-        }
-
-        await submitReportDemo({
-          source: "document",
-          document: selectedDoc,
-        });
-      } else {
-        await submitReportDemo({
-          source: "text",
-          title,
-          content,
-        });
-      }
-
+      if (isDoc && !selectedDoc) throw new Error("Select a document first.");
+      const saved = await createReport(
+        isDoc && selectedDoc
+          ? { source: "document", document: selectedDoc }
+          : { source: "text", title, content },
+      );
+      setSavedId(saved.id);
+      clearDraft();
       setStatus("success");
     } catch (error) {
       setErrorMsg(
@@ -75,6 +79,8 @@ export default function ReportPreviewScreen() {
       );
 
       setStatus("error");
+    } finally {
+      savingRef.current = false;
     }
   }
 
@@ -123,6 +129,7 @@ export default function ReportPreviewScreen() {
             accessibilityLabel={
               isDoc ? "Go back to Home" : "Go back to edit report"
             }
+            disabled={isSubmitting}
             onPress={handleEdit}
             style={({ pressed }) => [
               styles.backButton,
@@ -154,7 +161,8 @@ export default function ReportPreviewScreen() {
                 </ThemedText>
 
                 <ThemedText themeColor="textSecondary">
-                  Text extraction will happen after backend submission.
+                  Document will be saved locally. Extraction requires the
+                  backend.
                 </ThemedText>
               </>
             ) : (
@@ -165,7 +173,9 @@ export default function ReportPreviewScreen() {
               </>
             )}
             <ThemedText type="small" themeColor="textSecondary">
-              Not Saved or sent for normalization
+              {Platform.OS === "web"
+                ? "Browser demo: this report will be kept only until refresh."
+                : "Not saved yet. Saving does not upload or analyze this report."}
             </ThemedText>
           </ThemedView>
 
@@ -188,6 +198,24 @@ export default function ReportPreviewScreen() {
             <ThemedText accessibilityRole="alert">{pickerError}</ThemedText>
           )}
 
+          {storageStatus !== "ready" && (
+            <ThemedView style={styles.previewCard}>
+              <ThemedText>
+                {storageStatus === "loading"
+                  ? "Opening report storage…"
+                  : "Couldn’t load report storage."}
+              </ThemedText>
+              {storageStatus === "failed" && (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={retryLoad}
+                  style={styles.editButton}
+                >
+                  <ThemedText>Retry</ThemedText>
+                </Pressable>
+              )}
+            </ThemedView>
+          )}
           <Pressable
             accessibilityRole="button"
             accessibilityState={{
@@ -205,12 +233,12 @@ export default function ReportPreviewScreen() {
             {isSubmitting && <ActivityIndicator color="#FFFFFF" />}
             <ThemedText style={styles.submitText}>
               {isSubmitting
-                ? "Submitting..."
+                ? "Saving..."
                 : status === "error"
                   ? "Try again"
                   : status === "success"
-                    ? "Demo Completed"
-                    : "Submit report"}
+                    ? "Saved"
+                    : "Save report"}
             </ThemedText>
           </Pressable>
 
@@ -220,7 +248,7 @@ export default function ReportPreviewScreen() {
 
           {status === "success" && (
             <ThemedText accessibilityLiveRegion="polite">
-              Demo completed successfully. Nothing was sent or saved.
+              Report saved. No backend request was sent.
             </ThemedText>
           )}
         </ScrollView>

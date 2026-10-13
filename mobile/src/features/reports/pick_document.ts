@@ -1,4 +1,5 @@
 import * as DocumentPicker from "expo-document-picker";
+import { Platform } from "react-native";
 
 const Doc_Types = [
   "application/pdf",
@@ -20,7 +21,9 @@ export async function pickDoc() {
   const result = await DocumentPicker.getDocumentAsync({
     type: Doc_Types,
     multiple: false,
-    copyToCacheDirectory: true,
+    // Android: retain the URI granted by the system picker. Saving copies it
+    // into Paths.document; the picker's cache may be outside Expo Go's scope.
+    copyToCacheDirectory: Platform.OS !== "android",
     base64: false,
   });
 

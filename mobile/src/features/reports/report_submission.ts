@@ -1,37 +1,41 @@
-import { DocumentPickerAsset } from "expo-document-picker";
+import type { DocumentPickerAsset } from "expo-document-picker";
+import type { SavedReport } from "./report_types";
 
-type ReportSubmissionInput =
-  | {
-      source: "text";
-      title: string;
-      content: string;
+export type ReportSubmissionInput =
+  | { source: "text"; title: string; content: string }
+  | { source: "document"; document: DocumentPickerAsset };
+
+export function buildReport(
+  id: string,
+  input: ReportSubmissionInput,
+): SavedReport {
+  if (input.source === "text") {
+    if (!input.content.trim()) throw new Error("Enter some report text first.");
+    if (input.content.length > 10_000 || input.title.length > 120) {
+      throw new Error(
+        "Keep report text within 10,000 characters and the title within 120.",
+      );
     }
-  | {
-      source: "document";
-      document: DocumentPickerAsset;
-    };
-
-type DemoSubmissionOptions = {
-  shouldFail?: boolean;
-};
-
-export async function submitReportDemo(
-  report: ReportSubmissionInput,
-  options: DemoSubmissionOptions = {},
-): Promise<void> {
-  if (report.source === "text" && !report.content.trim()) {
-    throw new Error("Enter some report text before submitting.");
+  } else if (
+    !input.document.uri ||
+    !/\.(pdf|docx?|txt|md|csv|rtf|xls|xlsx|xlsm)$/i.test(input.document.name)
+  ) {
+    throw new Error("Select a supported document first.");
   }
-
-  if (report.source === "document" && !report.document.uri) {
-    throw new Error("Select a document before submitting.");
-  }
-
-  await new Promise<void>((resolve) => {
-    setTimeout(resolve, 2000);
-  });
-
-  if (options.shouldFail) {
-    throw new Error("Demo submission failed. Please try again.");
-  }
+  return {
+    id,
+    title:
+      input.source === "text"
+        ? input.title.trim() || "Untitled report"
+        : input.document.name,
+    createdAt: new Date().toISOString(),
+    source: input.source,
+    status: "awaiting_backend",
+    content: input.source === "text" ? input.content.trim() : null,
+    documentName: input.source === "document" ? input.document.name : null,
+    documentPath: null,
+    mimeType:
+      input.source === "document" ? (input.document.mimeType ?? null) : null,
+    size: input.source === "document" ? (input.document.size ?? null) : null,
+  };
 }

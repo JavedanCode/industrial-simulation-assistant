@@ -3,6 +3,7 @@ import { SymbolView } from "expo-symbols";
 import { useState } from "react";
 import {
   KeyboardAvoidingView,
+  ActivityIndicator,
   Platform,
   Pressable,
   StyleSheet,
@@ -12,7 +13,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { MaxContentWidth } from "@/constants/theme";
-import { demoReports } from "@/features/reports/demo_reports";
+import { useReports } from "@/features/reports/reports_context";
+import { reportStatusLabels } from "@/features/reports/report_types";
 import { useTheme } from "@/hooks/use-theme";
 import { ReportChat } from "@/features/reports/chat/report_chat";
 
@@ -21,14 +23,11 @@ export default function ReportDetailsScreen() {
   const theme = useTheme();
   const [showDetails, setShowDetails] = useState(false);
 
-  const report = demoReports.find((item) => item.id === id);
+  const { reports, status, retryLoad } = useReports();
+  const report = reports.find((item) => item.id === id);
 
   function handleBack() {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace("/reports");
-    }
+    router.dismissTo("/reports");
   }
 
   return (
@@ -95,11 +94,31 @@ export default function ReportDetailsScreen() {
               )}
             </ThemedView>
 
-            {report ? (
+            {status !== "ready" ? (
+              <ThemedView style={styles.card}>
+                {status === "loading" ? (
+                  <ActivityIndicator />
+                ) : (
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={retryLoad}
+                    style={styles.backButton}
+                  >
+                    <ThemedText>Retry</ThemedText>
+                  </Pressable>
+                )}
+                <ThemedText>
+                  {status === "loading"
+                    ? "Loading report…"
+                    : "Couldn’t load saved reports."}
+                </ThemedText>
+              </ThemedView>
+            ) : report ? (
               <>
                 {showDetails && (
                   <ThemedView type="backgroundElement" style={styles.card}>
                     <ThemedText type="smallBold">{report.title}</ThemedText>
+                    <ThemedText>{reportStatusLabels[report.status]}</ThemedText>
 
                     <ThemedText themeColor="textSecondary">
                       {new Date(report.createdAt).toLocaleDateString(
@@ -125,7 +144,16 @@ export default function ReportDetailsScreen() {
                   </ThemedView>
                 )}
 
-                {report.status === "ready" ? (
+                {report.status === "awaiting_backend" && (
+                  <ThemedView style={styles.statusNote}>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      Awaiting backend — no upload or analysis has started. Chat
+                      replies are demos.
+                    </ThemedText>
+                  </ThemedView>
+                )}
+                {report.status === "ready" ||
+                report.status === "awaiting_backend" ? (
                   <ReportChat key={report.id} reportId={report.id} />
                 ) : (
                   <ThemedView type="backgroundElement" style={styles.card}>
@@ -190,6 +218,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignSelf: "flex-start",
   },
+  statusNote: { paddingHorizontal: 20, paddingVertical: 8 },
   card: {
     marginHorizontal: 20,
     marginVertical: 12,

@@ -1,23 +1,18 @@
-import { FlatList, StyleSheet, Pressable } from "react-native";
+import {
+  FlatList,
+  StyleSheet,
+  Pressable,
+  ActivityIndicator,
+  Platform,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { BottomTabInset, MaxContentWidth } from "@/constants/theme";
-import { demoReports } from "@/features/reports/demo_reports";
-import { ReportSummery } from "@/features/reports/report_types";
-
-const statusLabels: Record<ReportSummery["status"], string> = {
-  processing: "Processing",
-  ready: "Anaylsis Ready",
-  failed: "Analysis Failed",
-};
-
-//Copy the demo reports and sort them by creation date, newest first
-const reports = [...demoReports].sort(
-  (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-);
+import { useReports } from "@/features/reports/reports_context";
+import { reportStatusLabels } from "@/features/reports/report_types";
 
 //Format date using the device's Locale, with a short month name
 function formatReportDate(value: string) {
@@ -29,6 +24,7 @@ function formatReportDate(value: string) {
 }
 
 export default function ReportsScreen() {
+  const { reports, status, retryLoad } = useReports();
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
@@ -42,7 +38,9 @@ export default function ReportsScreen() {
               <ThemedText type="subtitle">Reports</ThemedText>
 
               <ThemedText themeColor="textSecondary">
-                Demo report - sample data for now.
+                {Platform.OS === "web"
+                  ? "Browser demo: reports reset on refresh."
+                  : "Reports saved on this device."}
               </ThemedText>
             </ThemedView>
           }
@@ -70,17 +68,35 @@ export default function ReportsScreen() {
                 </ThemedText>
 
                 <ThemedText type="smallBold">
-                  {statusLabels[item.status]}
+                  {reportStatusLabels[item.status]}
                 </ThemedText>
               </ThemedView>
             </Pressable>
           )}
           ListEmptyComponent={
             <ThemedView style={styles.emptyState}>
-              <ThemedText>No Reports Yet.</ThemedText>
+              {status === "loading" && <ActivityIndicator />}
+              <ThemedText>
+                {status === "loading"
+                  ? "Loading reports…"
+                  : status === "failed"
+                    ? "Couldn’t load saved reports."
+                    : "No reports yet."}
+              </ThemedText>
+              {status === "failed" && (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={retryLoad}
+                  style={styles.reportCard}
+                >
+                  <ThemedText>Retry</ThemedText>
+                </Pressable>
+              )}
 
               <ThemedText themeColor="textSecondary">
-                Your saved reports and their analysis will appear here.
+                {status === "ready"
+                  ? "Save a report from Home to see it here."
+                  : ""}
               </ThemedText>
             </ThemedView>
           }
