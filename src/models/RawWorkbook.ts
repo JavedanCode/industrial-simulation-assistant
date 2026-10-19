@@ -1,4 +1,4 @@
-import type { ReportWarning } from "./ReportWarning.ts";
+import type { ReportWarning } from "./ReportWarning";
 export type RawCellValue = string | number | boolean | null;
 
 export interface RawCell {
