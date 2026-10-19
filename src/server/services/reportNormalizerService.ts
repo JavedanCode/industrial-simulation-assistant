@@ -13,6 +13,8 @@ import type {
 
 import type { ReportWarning } from "../../models/ReportWarning";
 
+import { normalizeSummary } from "./summaryNormalizerService.js";
+
 const NUMERIC_STAT_COLUMNS: Record<string, string[]> = {
   DiscreteTimeStatsByRep: [
     "Average",
@@ -436,6 +438,7 @@ export function normalizeReport(workbook: RawWorkbook): NormalizedReport {
     sourceFormat: workbook.sourceFormat,
     metadata,
     tables,
+    summary: normalizeSummary(workbook),
     warnings,
   };
 }

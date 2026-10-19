@@ -1,5 +1,6 @@
 import type { RawCellValue } from "./RawWorkbook.js";
 import type { ReportWarning } from "./ReportWarning.js";
+import type { NormalizedSummary } from "./NormalizedSummary.js";
 
 export interface ReportMetadata {
   projectName: RawCellValue;
@@ -32,5 +33,6 @@ export interface NormalizedReport {
     outputStats: NormalizedTable;
     frequencyStats: NormalizedTable;
   };
+  summary: NormalizedSummary;
   warnings: ReportWarning[];
 }

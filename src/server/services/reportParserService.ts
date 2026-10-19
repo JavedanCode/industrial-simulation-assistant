@@ -84,11 +84,14 @@ function extractCell(
     (typeof rawValue.formula === "string" ||
       typeof rawValue.sharedFormula === "string");
 
+  const formulaResult = isFormula ? rawValue.result : undefined;
+
+  const cachedResult =
+    formulaResult ?? (isFormula ? cell.model.result : undefined);
+
   const result: RawCell = {
     address: cell.address,
-    value: isFormula
-      ? toRawCellValue(rawValue.result)
-      : toRawCellValue(rawValue),
+    value: isFormula ? toRawCellValue(cachedResult) : toRawCellValue(rawValue),
     type: rawType,
   };
 
@@ -120,9 +123,7 @@ function extractCell(
     }
 
     const hasMissingResult =
-      !("result" in rawValue) ||
-      rawValue.result === undefined ||
-      rawValue.result === null;
+      cachedResult === undefined || cachedResult === null;
 
     if (hasMissingResult) {
       warnings.push({
@@ -133,7 +134,7 @@ function extractCell(
         cellAddress: cell.address,
       });
     } else {
-      result.result = toRawCellValue(rawValue.result);
+      result.result = toRawCellValue(cachedResult);
     }
   }
 

@@ -81,7 +81,11 @@ function normalizeKey(value: string): string {
 }
 
 function isEmpty(value: RawCellValue): boolean {
-  return value === null || (typeof value === "string" && value.trim() === "");
+  return (
+    value === null ||
+    (typeof value === "string" &&
+      (value.trim() === "" || value.trim().toLowerCase() === "(blank)"))
+  );
 }
 
 function columnLetter(columnNumber: number): string {
