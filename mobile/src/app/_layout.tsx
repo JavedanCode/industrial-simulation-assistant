@@ -22,11 +22,6 @@ export default function RootLayout() {
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 
               <Stack.Screen
-                name="paste-text"
-                options={{ headerShown: false }}
-              />
-
-              <Stack.Screen
                 name="report_preview"
                 options={{ headerShown: false }}
               />
