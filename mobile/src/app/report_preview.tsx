@@ -1,4 +1,4 @@
-import { Redirect, router, useLocalSearchParams } from "expo-router";
+import { Redirect, router } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import {
   Pressable,
@@ -20,15 +20,12 @@ import { pickDoc } from "@/features/reports/pick_document";
 type SubmissionStatus = "idle" | "submitting" | "success" | "error";
 
 export default function ReportPreviewScreen() {
-  const { title, content, selectedDoc, setSelectedDoc, clearDraft } =
+  const { selectedDoc, setSelectedDoc, clearDraft } =
     useReportDraft();
 
   const { createReport, status: storageStatus, retryLoad } = useReports();
   const savingRef = useRef(false);
   const [savedId, setSavedId] = useState<string | null>(null);
-
-  const { source } = useLocalSearchParams<{ source?: string }>();
-  const isDoc = source === "document";
 
   const theme = useTheme();
   const [status, setStatus] = useState<SubmissionStatus>("idle");
@@ -44,12 +41,8 @@ export default function ReportPreviewScreen() {
       <Redirect href={{ pathname: "/report/[id]", params: { id: savedId } }} />
     );
 
-  if (isDoc && !selectedDoc) {
+  if (!selectedDoc) {
     return <Redirect href="/" />;
-  }
-
-  if (!isDoc && !content.trim()) {
-    return <Redirect href="/paste-text" />;
   }
 
   async function handleSubmit() {
@@ -62,12 +55,11 @@ export default function ReportPreviewScreen() {
     setErrorMsg("");
 
     try {
-      if (isDoc && !selectedDoc) throw new Error("Select a document first.");
-      const saved = await createReport(
-        isDoc && selectedDoc
-          ? { source: "document", document: selectedDoc }
-          : { source: "text", title, content },
-      );
+      if (!selectedDoc) throw new Error("Select a document first.");
+      const saved = await createReport({
+        source: "document",
+        document: selectedDoc,
+      });
       setSavedId(saved.id);
       clearDraft();
       setStatus("success");
@@ -110,13 +102,11 @@ export default function ReportPreviewScreen() {
     }
   }
 
-  function handleEdit() {
+  function handleBack() {
     if (router.canGoBack()) {
       router.back();
-    } else if (isDoc) {
-      router.replace("/");
     } else {
-      router.replace("/paste-text");
+      router.replace("/");
     }
   }
 
@@ -126,11 +116,9 @@ export default function ReportPreviewScreen() {
         <ScrollView contentContainerStyle={styles.content}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={
-              isDoc ? "Go back to Home" : "Go back to edit report"
-            }
+            accessibilityLabel="Go back to Home"
             disabled={isSubmitting}
-            onPress={handleEdit}
+            onPress={handleBack}
             style={({ pressed }) => [
               styles.backButton,
               pressed && styles.pressed,
@@ -150,28 +138,18 @@ export default function ReportPreviewScreen() {
           <ThemedView type="backgroundElement" style={styles.previewCard}>
             <ThemedText type="smallBold">Report Preview</ThemedText>
 
-            {isDoc && selectedDoc ? (
-              <>
-                <ThemedText type="smallBold">{selectedDoc.name}</ThemedText>
+            <ThemedText type="smallBold">{selectedDoc.name}</ThemedText>
 
-                <ThemedText themeColor="textSecondary">
-                  {selectedDoc.size !== undefined
-                    ? `${(selectedDoc.size / 1024).toFixed(1)} KB`
-                    : "File size unavailable"}
-                </ThemedText>
+            <ThemedText themeColor="textSecondary">
+              {selectedDoc.size !== undefined
+                ? `${(selectedDoc.size / 1024).toFixed(1)} KB`
+                : "File size unavailable"}
+            </ThemedText>
 
-                <ThemedText themeColor="textSecondary">
-                  Document will be saved locally. Extraction requires the
-                  backend.
-                </ThemedText>
-              </>
-            ) : (
-              <>
-                <ThemedText>{title.trim() || "Untitled report"}</ThemedText>
-
-                <ThemedText selectable>{content.trim()}</ThemedText>
-              </>
-            )}
+            <ThemedText themeColor="textSecondary">
+              Document will be saved locally. Extraction requires the
+              backend.
+            </ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
               {Platform.OS === "web"
                 ? "Browser demo: this report will be kept only until refresh."
@@ -183,7 +161,7 @@ export default function ReportPreviewScreen() {
             accessibilityRole="button"
             accessibilityState={{ disabled: isSubmitting }}
             disabled={isSubmitting}
-            onPress={isDoc ? handleChangeDocument : handleEdit}
+            onPress={handleChangeDocument}
             style={({ pressed }) => [
               styles.editButton,
               { borderColor: theme.textSecondary },
@@ -191,7 +169,7 @@ export default function ReportPreviewScreen() {
               pressed && styles.pressed,
             ]}
           >
-            <ThemedText>{isDoc ? "Change document" : "Edit report"}</ThemedText>
+            <ThemedText>Change document</ThemedText>
           </Pressable>
 
           {pickerError !== "" && (
