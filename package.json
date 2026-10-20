@@ -20,6 +20,7 @@
   "homepage": "https://github.com/JavedanCode/industrial-simulation-assistant#readme",
   "devDependencies": {
     "@types/express": "^5.0.6",
+    "@types/multer": "^2.3.0",
     "@types/node": "^26.6.5",
     "@types/supertest": "^7.2.1",
     "supertest": "^7.3.1",
@@ -27,8 +28,9 @@
     "vitest": "^5.0.3"
   },
   "dependencies": {
-    "exceljs": "^4.4.0",
+    "exceljs": "^3.4.0",
     "express": "^5.2.1",
+    "multer": "^2.4.0",
     "zod": "^4.6.5"
   }
 }

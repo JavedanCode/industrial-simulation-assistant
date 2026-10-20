@@ -3,7 +3,7 @@
 --- Execution ---
 Input file: arena-example-2.xlsm
 Source format: xlsm
-Generated at: 2026-10-20T11:04:29.677Z
+Generated at: 2026-10-20T11:37:02.150Z
 Diagnostic output: local-reports\arena-example-2-diagnostics.txt
 
 --- Worksheets ---
@@ -4428,33 +4428,9 @@ Diagnostic output: local-reports\arena-example-2-diagnostics.txt
       "Max Replication Value"
     ],
     "columnCount": 9,
-    "rowCount": 1,
-    "sampleRows": [
-      {
-        "Project Name": "(blank)",
-        "Name": "(blank)",
-        "Type": "(blank)",
-        "Source": "(blank)",
-        "Average Across Replications": null,
-        "Half-Width": null,
-        "Overall StDev Across Replications": null,
-        "Min Replication Value": null,
-        "Max Replication Value": null
-      }
-    ],
-    "lastRows": [
-      {
-        "Project Name": "(blank)",
-        "Name": "(blank)",
-        "Type": "(blank)",
-        "Source": "(blank)",
-        "Average Across Replications": null,
-        "Half-Width": null,
-        "Overall StDev Across Replications": null,
-        "Min Replication Value": null,
-        "Max Replication Value": null
-      }
-    ]
+    "rowCount": 0,
+    "sampleRows": [],
+    "lastRows": []
   },
   "discreteAcrossReplications": {
     "sourceWorksheet": "AcrossReplicationsSummary",
@@ -4544,27 +4520,9 @@ Diagnostic output: local-reports\arena-example-2-diagnostics.txt
       "Average Restricted Percentage"
     ],
     "columnCount": 6,
-    "rowCount": 1,
-    "sampleRows": [
-      {
-        "Project Name": "(blank)",
-        "Name": "(blank)",
-        "Category": "(blank)",
-        "Source": "(blank)",
-        "Average Standard Percentage": null,
-        "Average Restricted Percentage": null
-      }
-    ],
-    "lastRows": [
-      {
-        "Project Name": "(blank)",
-        "Name": "(blank)",
-        "Category": "(blank)",
-        "Source": "(blank)",
-        "Average Standard Percentage": null,
-        "Average Restricted Percentage": null
-      }
-    ]
+    "rowCount": 0,
+    "sampleRows": [],
+    "lastRows": []
   }
 }
 
@@ -32299,19 +32257,7 @@ Diagnostic output: local-reports\arena-example-2-diagnostics.txt
       "Min Replication Value",
       "Max Replication Value"
     ],
-    "rows": [
-      {
-        "Project Name": "(blank)",
-        "Name": "(blank)",
-        "Type": "(blank)",
-        "Source": "(blank)",
-        "Average Across Replications": null,
-        "Half-Width": null,
-        "Overall StDev Across Replications": null,
-        "Min Replication Value": null,
-        "Max Replication Value": null
-      }
-    ]
+    "rows": []
   },
   "discreteAcrossReplications": {
     "sourceWorksheet": "AcrossReplicationsSummary",
@@ -32420,16 +32366,7 @@ Diagnostic output: local-reports\arena-example-2-diagnostics.txt
       "Average Standard Percentage",
       "Average Restricted Percentage"
     ],
-    "rows": [
-      {
-        "Project Name": "(blank)",
-        "Name": "(blank)",
-        "Category": "(blank)",
-        "Source": "(blank)",
-        "Average Standard Percentage": null,
-        "Average Restricted Percentage": null
-      }
-    ]
+    "rows": []
   }
 }
 

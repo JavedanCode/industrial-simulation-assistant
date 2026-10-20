@@ -77,7 +77,7 @@ function extractCell(
   warnings: ReportWarning[],
 ): RawCell {
   const rawValue: unknown = cell.value;
-  const rawType = ExcelJS.ValueType[cell.type] ?? String(cell.type);
+  const rawType = String(cell.type);
 
   const isFormula =
     isRecord(rawValue) &&
