@@ -11,7 +11,7 @@ export async function saveReport(
   input: ReportSubmissionInput,
 ): Promise<SavedReport> {
   const report = buildReport(id, input);
-  if (input.source === "document") report.documentPath = input.document.uri;
+  report.documentPath = input.document.uri;
   reports.unshift(report);
   return report;
 }
