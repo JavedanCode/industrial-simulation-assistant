@@ -78,26 +78,18 @@ test("saved text/documents survive reopen; failed insert cleans up its copy", as
   try {
     let store = storage();
     assert.equal((await store.loadReports()).length, 0);
-    const text = await store.saveReport(randomUUID(), {
-      source: "text",
-      title: "",
-      content: "  Output 'A': 42 مرحبا  ",
-    });
-    assert.equal(text.title, "Untitled report");
-    assert.equal(text.status, "awaiting_backend");
-    assert.equal(text.content, "Output 'A': 42 مرحبا");
+    // Seed an existing text report to verify backwards-compatible reads.
+    const text = { id: randomUUID(), content: "Output 'A': 42 مرحبا" };
+    raw.prepare(
+      `INSERT INTO reports (id,title,createdAt,source,status,content)
+       VALUES (?,?,?,?,?,?)`,
+    ).run(text.id, "Legacy report", new Date().toISOString(), "text",
+      "awaiting_backend", text.content);
     await assert.rejects(
       store.saveReport(randomUUID(), {
         source: "text",
         title: "x",
-        content: " ",
-      }),
-    );
-    await assert.rejects(
-      store.saveReport(randomUUID(), {
-        source: "text",
-        title: "x",
-        content: "x".repeat(10001),
+        content: "Previously valid pasted text",
       }),
     );
     fs.writeFileSync(sourcePath, "document bytes, never executed");
