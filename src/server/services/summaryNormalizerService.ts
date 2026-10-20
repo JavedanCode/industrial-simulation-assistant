@@ -81,10 +81,14 @@ function normalizeKey(value: string): string {
 }
 
 function isEmpty(value: RawCellValue): boolean {
-  return (
-    value === null ||
-    (typeof value === "string" &&
-      (value.trim() === "" || value.trim().toLowerCase() === "(blank)"))
+  return value === null || (typeof value === "string" && value.trim() === "");
+}
+
+function isPlaceholderOnlyRow(values: RawCellValue[]): boolean {
+  return values.every(
+    (value) =>
+      isEmpty(value) ||
+      (typeof value === "string" && value.trim().toLowerCase() === "(blank)"),
   );
 }
 
@@ -148,13 +152,27 @@ function extractSection(
 
   const rows: Record<string, RawCellValue>[] = [];
 
+  const nameColumn = columns.find((column) => normalizeKey(column) === "name");
+  const typeColumn = columns.find(
+    (column) =>
+      normalizeKey(column) === "type" || normalizeKey(column) === "category",
+  );
+  const sourceColumn = columns.find(
+    (column) => normalizeKey(column) === "source",
+  );
+
+  let previousName: RawCellValue = null;
+
   for (const row of worksheet.rows.slice(headerIndex + 1)) {
     const sectionCells = row.cells.slice(
       config.startColumn - 1,
       config.endColumn,
     );
 
-    if (sectionCells.every((cell) => isEmpty(cell.value))) {
+    if (
+      sectionCells.every((cell) => isEmpty(cell.value)) ||
+      isPlaceholderOnlyRow(sectionCells.map((cell) => cell.value))
+    ) {
       continue;
     }
 
@@ -163,6 +181,47 @@ function extractSection(
     columns.forEach((column, index) => {
       normalizedRow[column] = sectionCells[index]?.value ?? null;
     });
+
+    if (nameColumn) {
+      const currentName = normalizedRow[nameColumn];
+      const nameIsMissing =
+        currentName === null ||
+        (typeof currentName === "string" && currentName.trim() === "");
+
+      const isExplicitBlank =
+        typeof currentName === "string" &&
+        currentName.trim().toLowerCase() === "(blank)";
+
+      const hasRowContext =
+        typeColumn !== undefined &&
+        sourceColumn !== undefined &&
+        !isEmpty(normalizedRow[typeColumn]) &&
+        !isEmpty(normalizedRow[sourceColumn]);
+
+      if (
+        nameIsMissing &&
+        hasRowContext &&
+        previousName !== null &&
+        !(
+          typeof previousName === "string" &&
+          previousName.trim().toLowerCase() === "(blank)"
+        )
+      ) {
+        normalizedRow[nameColumn] = previousName;
+      }
+
+      const resolvedName: RawCellValue = normalizedRow[nameColumn];
+
+      if (
+        !isEmpty(resolvedName) &&
+        !(
+          typeof resolvedName === "string" &&
+          resolvedName.trim().toLowerCase() === "(blank)"
+        )
+      ) {
+        previousName = resolvedName;
+      }
+    }
 
     rows.push(normalizedRow);
   }

@@ -3,7 +3,7 @@
 --- Execution ---
 Input file: arena-example-2.xlsm
 Source format: xlsm
-Generated at: 2026-10-20T10:39:02.634Z
+Generated at: 2026-10-20T11:04:29.677Z
 Diagnostic output: local-reports\arena-example-2-diagnostics.txt
 
 --- Worksheets ---
@@ -4278,7 +4278,7 @@ Diagnostic output: local-reports\arena-example-2-diagnostics.txt
       },
       {
         "Project Name": null,
-        "Name": null,
+        "Name": "Customer",
         "Type": "Other Time",
         "Source": "Entity",
         "Average Of Replication Averages": 0,
@@ -4295,7 +4295,7 @@ Diagnostic output: local-reports\arena-example-2-diagnostics.txt
     "lastRows": [
       {
         "Project Name": null,
-        "Name": null,
+        "Name": "Customer",
         "Type": "Wait Time",
         "Source": "Entity",
         "Average Of Replication Averages": 24.212253678754514,
@@ -4372,7 +4372,7 @@ Diagnostic output: local-reports\arena-example-2-diagnostics.txt
       },
       {
         "Project Name": null,
-        "Name": null,
+        "Name": "Cashier",
         "Type": "Number Busy",
         "Source": "Resource",
         "Average Of Replication Averages": 1.2402266671403053,
@@ -4387,7 +4387,7 @@ Diagnostic output: local-reports\arena-example-2-diagnostics.txt
     "lastRows": [
       {
         "Project Name": null,
-        "Name": null,
+        "Name": "MilkShake_Maker",
         "Type": "Number Scheduled",
         "Source": "Resource",
         "Average Of Replication Averages": 1,
@@ -4428,9 +4428,33 @@ Diagnostic output: local-reports\arena-example-2-diagnostics.txt
       "Max Replication Value"
     ],
     "columnCount": 9,
-    "rowCount": 0,
-    "sampleRows": [],
-    "lastRows": []
+    "rowCount": 1,
+    "sampleRows": [
+      {
+        "Project Name": "(blank)",
+        "Name": "(blank)",
+        "Type": "(blank)",
+        "Source": "(blank)",
+        "Average Across Replications": null,
+        "Half-Width": null,
+        "Overall StDev Across Replications": null,
+        "Min Replication Value": null,
+        "Max Replication Value": null
+      }
+    ],
+    "lastRows": [
+      {
+        "Project Name": "(blank)",
+        "Name": "(blank)",
+        "Type": "(blank)",
+        "Source": "(blank)",
+        "Average Across Replications": null,
+        "Half-Width": null,
+        "Overall StDev Across Replications": null,
+        "Min Replication Value": null,
+        "Max Replication Value": null
+      }
+    ]
   },
   "discreteAcrossReplications": {
     "sourceWorksheet": "AcrossReplicationsSummary",
@@ -4520,9 +4544,27 @@ Diagnostic output: local-reports\arena-example-2-diagnostics.txt
       "Average Restricted Percentage"
     ],
     "columnCount": 6,
-    "rowCount": 0,
-    "sampleRows": [],
-    "lastRows": []
+    "rowCount": 1,
+    "sampleRows": [
+      {
+        "Project Name": "(blank)",
+        "Name": "(blank)",
+        "Category": "(blank)",
+        "Source": "(blank)",
+        "Average Standard Percentage": null,
+        "Average Restricted Percentage": null
+      }
+    ],
+    "lastRows": [
+      {
+        "Project Name": "(blank)",
+        "Name": "(blank)",
+        "Category": "(blank)",
+        "Source": "(blank)",
+        "Average Standard Percentage": null,
+        "Average Restricted Percentage": null
+      }
+    ]
   }
 }
 
@@ -32015,7 +32057,7 @@ Diagnostic output: local-reports\arena-example-2-diagnostics.txt
       },
       {
         "Project Name": null,
-        "Name": null,
+        "Name": "Customer",
         "Type": "Other Time",
         "Source": "Entity",
         "Average Of Replication Averages": 0,
@@ -32030,7 +32072,7 @@ Diagnostic output: local-reports\arena-example-2-diagnostics.txt
       },
       {
         "Project Name": null,
-        "Name": null,
+        "Name": "Customer",
         "Type": "Total Time",
         "Source": "Entity",
         "Average Of Replication Averages": 26.57775059655212,
@@ -32045,7 +32087,7 @@ Diagnostic output: local-reports\arena-example-2-diagnostics.txt
       },
       {
         "Project Name": null,
-        "Name": null,
+        "Name": "Customer",
         "Type": "Transfer Time",
         "Source": "Entity",
         "Average Of Replication Averages": 0,
@@ -32060,7 +32102,7 @@ Diagnostic output: local-reports\arena-example-2-diagnostics.txt
       },
       {
         "Project Name": null,
-        "Name": null,
+        "Name": "Customer",
         "Type": "VA Time",
         "Source": "Entity",
         "Average Of Replication Averages": 2.365496917797608,
@@ -32075,7 +32117,7 @@ Diagnostic output: local-reports\arena-example-2-diagnostics.txt
       },
       {
         "Project Name": null,
-        "Name": null,
+        "Name": "Customer",
         "Type": "Wait Time",
         "Source": "Entity",
         "Average Of Replication Averages": 24.212253678754514,
@@ -32151,7 +32193,7 @@ Diagnostic output: local-reports\arena-example-2-diagnostics.txt
       },
       {
         "Project Name": null,
-        "Name": null,
+        "Name": "Cashier",
         "Type": "Number Busy",
         "Source": "Resource",
         "Average Of Replication Averages": 1.2402266671403053,
@@ -32164,7 +32206,7 @@ Diagnostic output: local-reports\arena-example-2-diagnostics.txt
       },
       {
         "Project Name": null,
-        "Name": null,
+        "Name": "Cashier",
         "Type": "Number Scheduled",
         "Source": "Resource",
         "Average Of Replication Averages": 2,
@@ -32203,7 +32245,7 @@ Diagnostic output: local-reports\arena-example-2-diagnostics.txt
       },
       {
         "Project Name": null,
-        "Name": null,
+        "Name": "MilkShake_Maker",
         "Type": "Number Busy",
         "Source": "Resource",
         "Average Of Replication Averages": 0.8231392597630718,
@@ -32216,7 +32258,7 @@ Diagnostic output: local-reports\arena-example-2-diagnostics.txt
       },
       {
         "Project Name": null,
-        "Name": null,
+        "Name": "MilkShake_Maker",
         "Type": "Number Scheduled",
         "Source": "Resource",
         "Average Of Replication Averages": 1,
@@ -32257,7 +32299,19 @@ Diagnostic output: local-reports\arena-example-2-diagnostics.txt
       "Min Replication Value",
       "Max Replication Value"
     ],
-    "rows": []
+    "rows": [
+      {
+        "Project Name": "(blank)",
+        "Name": "(blank)",
+        "Type": "(blank)",
+        "Source": "(blank)",
+        "Average Across Replications": null,
+        "Half-Width": null,
+        "Overall StDev Across Replications": null,
+        "Min Replication Value": null,
+        "Max Replication Value": null
+      }
+    ]
   },
   "discreteAcrossReplications": {
     "sourceWorksheet": "AcrossReplicationsSummary",
@@ -32366,7 +32420,16 @@ Diagnostic output: local-reports\arena-example-2-diagnostics.txt
       "Average Standard Percentage",
       "Average Restricted Percentage"
     ],
-    "rows": []
+    "rows": [
+      {
+        "Project Name": "(blank)",
+        "Name": "(blank)",
+        "Category": "(blank)",
+        "Source": "(blank)",
+        "Average Standard Percentage": null,
+        "Average Restricted Percentage": null
+      }
+    ]
   }
 }
 

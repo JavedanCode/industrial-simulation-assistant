@@ -105,6 +105,14 @@ describe("Arena example report integration", () => {
         endColumn: "AZ",
       });
 
+      console.log(
+        "Unexpected replication averages with observations rows:",
+        JSON.stringify(
+          summarySections.replicationAveragesWithObservations.rows,
+          null,
+          2,
+        ),
+      );
       expect(
         summarySections.replicationAveragesWithObservations.rows,
       ).toHaveLength(0);

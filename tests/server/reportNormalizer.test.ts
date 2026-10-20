@@ -232,6 +232,7 @@ describe("normalizeReport", () => {
       modelFile: "factory.doe",
       modelRunDate: "2026-10-15",
       timeUnits: 3,
+      timeUnitLabel: "Hours",
       numberOfReplications: 15,
       averageStatCollectionLength: 8000,
       confidenceInterval: 0.95,
@@ -550,6 +551,68 @@ describe("normalizeReport", () => {
     for (const section of Object.values(sections)) {
       expect(section.rows).toHaveLength(1);
     }
+  });
+
+  it("inherits missing summary names only when row context supports it", () => {
+    const workbook = createTestWorkbook();
+
+    const summarySheet = workbook.worksheets.find(
+      (sheet) => sheet.name === "AcrossReplicationsSummary",
+    );
+
+    if (!summarySheet) {
+      throw new Error("AcrossReplicationsSummary fixture is missing");
+    }
+
+    // Row 3: an explicit "(blank)" name in A:M must remain unchanged.
+    const explicitBlankRow = summarySheet.rows[2]!;
+
+    explicitBlankRow.cells[1]!.value = "(blank)";
+    explicitBlankRow.cells[2]!.value = "Other Time";
+    explicitBlankRow.cells[3]!.value = "Customer";
+    explicitBlankRow.cells[4]!.value = 10;
+
+    // Row 3: O:Y has no Name, but Type and Source identify a continuation.
+    explicitBlankRow.cells[14]!.value = "Factory Model";
+    explicitBlankRow.cells[15]!.value = null;
+    explicitBlankRow.cells[16]!.value = "Number Busy";
+    explicitBlankRow.cells[17]!.value = "Resource";
+    explicitBlankRow.cells[18]!.value = 1.25;
+
+    // Row 4: a missing Name without Type/Source context must not be inferred.
+    const contextlessRowValues: RawCellValue[] = Array(52).fill(null);
+    contextlessRowValues[14] = "Factory Model";
+    contextlessRowValues[15] = null;
+    contextlessRowValues[18] = 7;
+
+    summarySheet.rows.push({
+      excelRow: 4,
+      cells: contextlessRowValues.map((value, index) =>
+        createCell(`${columnLetterForTest(index + 1)}4`, value),
+      ),
+    });
+    summarySheet.rowCount = summarySheet.rows.length;
+
+    const report = normalizeReport(workbook);
+    const sections = report.summary.sections;
+
+    // Explicit "(blank)" is preserved.
+    expect(sections.replicationAveragesWithObservations.rows[1]?.Name).toBe(
+      "(blank)",
+    );
+
+    // The valid continuation inherits "welder" from the preceding row.
+    expect(sections.replicationAverages.rows[1]?.Name).toBe("welder");
+
+    // Missing context means the Name remains null.
+    expect(sections.replicationAverages.rows[2]?.Name).toBeNull();
+
+    // The first row in each section keeps its original Name.
+    expect(sections.continuousAcrossReplications.rows[0]?.Name).toBe(
+      "PartsCompleted",
+    );
+    expect(sections.discreteAcrossReplications.rows[0]?.Name).toBe("Queue");
+    expect(sections.frequencySummary.rows[0]?.Name).toBe("Customer");
   });
 
   it("rejects a summary section with unsupported headers", () => {
