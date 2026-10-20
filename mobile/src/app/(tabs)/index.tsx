@@ -44,7 +44,7 @@ export default function HomeScreen() {
             </ThemedText>
 
             <ThemedText themeColor="textSecondary" style={styles.centerText}>
-              Start with a document or paste your reports text
+              Select a document to start your report
             </ThemedText>
           </ThemedView>
 
@@ -55,11 +55,11 @@ export default function HomeScreen() {
               accessibilityRole="button"
               onPress={handlePickDoc}
               style={({ pressed }) => [
-                styles.pasteButton,
+                styles.documentButton,
                 pressed && styles.buttonPressed,
               ]}
             >
-              <ThemedText style={styles.pasteButtontext}>
+              <ThemedText style={styles.documentButtonText}>
                 {selectedDoc ? "Replace document" : "Upload document"}
               </ThemedText>
             </Pressable>
@@ -89,47 +89,29 @@ export default function HomeScreen() {
                     setDocError("");
                   }}
                   style={({ pressed }) => [
-                    styles.pasteButton,
+                    styles.documentButton,
                     pressed && styles.buttonPressed,
                   ]}
                 >
-                  <ThemedText style={styles.pasteButtontext}>
+                  <ThemedText style={styles.documentButtonText}>
                     Remove document
                   </ThemedText>
                 </Pressable>
 
                 <Pressable
                   accessibilityRole="button"
-                  onPress={() =>
-                    router.push({
-                      pathname: "/report_preview",
-                      params: { source: "document" },
-                    })
-                  }
+                  onPress={() => router.push("/report_preview")}
                   style={({ pressed }) => [
-                    styles.pasteButton,
+                    styles.documentButton,
                     pressed && styles.buttonPressed,
                   ]}
                 >
-                  <ThemedText style={styles.pasteButtontext}>
+                  <ThemedText style={styles.documentButtonText}>
                     Preview document
                   </ThemedText>
                 </Pressable>
               </ThemedView>
             )}
-
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => router.push("/paste-text")}
-              style={({ pressed }) => [
-                styles.pasteButton,
-                pressed && styles.buttonPressed,
-              ]}
-            >
-              <ThemedText style={styles.pasteButtontext}>
-                Paste text here
-              </ThemedText>
-            </Pressable>
           </ThemedView>
         </ScrollView>
       </SafeAreaView>
@@ -165,7 +147,7 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     borderRadius: Spacing.four,
   },
-  pasteButton: {
+  documentButton: {
     minHeight: 48,
     paddingHorizontal: 20,
     paddingVertical: 12,
@@ -174,7 +156,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  pasteButtontext: {
+  documentButtonText: {
     color: "#FFFFFF",
     fontWeight: "600",
   },
