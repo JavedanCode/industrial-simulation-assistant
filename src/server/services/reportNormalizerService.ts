@@ -171,6 +171,22 @@ function getUniqueColumns(headers: string[]): string[] {
   });
 }
 
+function normalizeStatValue(column: string, value: RawCellValue): RawCellValue {
+  if (column !== "BatchMeansHalfWidth" || typeof value !== "number") {
+    return value;
+  }
+
+  if (value === 200000000000000000000) {
+    return "Insufficient";
+  }
+
+  if (value === 300000000000000000000) {
+    return "Correlated";
+  }
+
+  return value;
+}
+
 function normalizeStatsWorksheet(
   workbook: RawWorkbook,
   worksheetName: string,
@@ -226,7 +242,10 @@ function normalizeStatsWorksheet(
     const normalizedRow: NormalizedTableRow = {};
 
     headers.forEach((header, index) => {
-      normalizedRow[header] = row.cells[index]?.value ?? null;
+      normalizedRow[header] = normalizeStatValue(
+        header,
+        row.cells[index]?.value ?? null,
+      );
     });
 
     rows.push(normalizedRow);
@@ -250,6 +269,19 @@ function findMetadataValue(
   );
 
   return index === -1 ? null : (values[index] ?? null);
+}
+
+function normalizeTimeUnitLabel(value: RawCellValue): string | null {
+  switch (value) {
+    case 1:
+      return "Seconds";
+    case 2:
+      return "Minutes";
+    case 3:
+      return "Hours";
+    default:
+      return null;
+  }
 }
 
 function normalizeMetadata(workbook: RawWorkbook): ReportMetadata {
@@ -301,6 +333,9 @@ function normalizeMetadata(workbook: RawWorkbook): ReportMetadata {
       "RunDate",
     ]),
     timeUnits: findMetadataValue(headers, values, ["TimeUnits", "Time Units"]),
+    timeUnitLabel: normalizeTimeUnitLabel(
+      findMetadataValue(headers, values, ["TimeUnits", "Time Units"]),
+    ),
     numberOfReplications: findMetadataValue(headers, values, [
       "RepsRequested",
       "Replications",
@@ -393,6 +428,12 @@ function validateTableValues(table: NormalizedTable): ReportWarning[] {
         continue;
       }
 
+      if (
+        column === "BatchMeansHalfWidth" &&
+        (value === "Insufficient" || value === "Correlated")
+      ) {
+        continue;
+      }
       if (typeof value !== "number" || !Number.isFinite(value)) {
         warnings.push({
           code: "INVALID_VALUE",

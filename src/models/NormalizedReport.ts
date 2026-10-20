@@ -7,6 +7,7 @@ export interface ReportMetadata {
   modelFile: RawCellValue;
   modelRunDate: RawCellValue;
   timeUnits: RawCellValue;
+  timeUnitLabel: string | null;
   numberOfReplications: RawCellValue;
   averageStatCollectionLength: RawCellValue;
   confidenceInterval: RawCellValue;

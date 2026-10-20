@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { extractWorkbook } from "../../src/server/services/reportParserService.js";
 import { normalizeReport } from "../../src/server/services/reportNormalizerService.js";
 
-const reportPath = "local-reports/arena-example-1-recalculated.xlsm";
+const reportPath = "local-reports/arena-example-1.xlsm";
 const reportFileName = "arena-example-1.xlsm";
 const diagnosticsPath = "local-reports/arena-integration-diagnostics.txt";
 
