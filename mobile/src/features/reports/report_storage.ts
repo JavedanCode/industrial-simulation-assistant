@@ -44,23 +44,21 @@ export async function saveReport(
   const db = await initReportsDb();
   let copiedFile: File | undefined;
   try {
-    if (input.source === "document") {
-      const directory = new Directory(Paths.document, "reports");
-      directory.create({ idempotent: true, intermediates: true });
-      const extension = input.document.name
-        .slice(input.document.name.lastIndexOf("."))
-        .toLowerCase();
-      const relativePath = `reports/${id}${extension}`;
-      const destination = new File(Paths.document, relativePath);
-      if (destination.exists)
-        throw new Error("A document already exists for this report.");
-      copiedFile = destination;
-      await new File(input.document.uri).copy(destination);
-      if (!destination.exists)
-        throw new Error("Could not copy the selected document.");
-      report.documentPath = relativePath;
-      report.size = destination.size;
-    }
+    const directory = new Directory(Paths.document, "reports");
+    directory.create({ idempotent: true, intermediates: true });
+    const extension = input.document.name
+      .slice(input.document.name.lastIndexOf("."))
+      .toLowerCase();
+    const relativePath = `reports/${id}${extension}`;
+    const destination = new File(Paths.document, relativePath);
+    if (destination.exists)
+      throw new Error("A document already exists for this report.");
+    copiedFile = destination;
+    await new File(input.document.uri).copy(destination);
+    if (!destination.exists)
+      throw new Error("Could not copy the selected document.");
+    report.documentPath = relativePath;
+    report.size = destination.size;
     await db.runAsync(
       `INSERT INTO reports
       (id,title,createdAt,source,status,content,documentName,documentPath,mimeType,size)
