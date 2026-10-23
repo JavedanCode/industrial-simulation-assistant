@@ -106,8 +106,8 @@ export async function createTestReport(
       ]);
     } else if (name === "ContinuousTimeStatsByRep") {
       sheet.addRow(["Replication", "Name", "Type", "Source", "Average"]);
-      sheet.addRow([1, "Assembler", "Resource", "Assembler", 0.75]);
-      sheet.addRow([2, "Assembler", "Resource", "Assembler", 0.8]);
+      sheet.addRow([1, "Assembler", "Instantaneous Utilization", "Resource", 0.75]);
+      sheet.addRow([2, "Assembler", "Instantaneous Utilization", "Resource", 0.8]);
     } else if (name === "DiscreteTimeStatsByRep") {
       sheet.addRow(["Replication", "Name", "Type", "Source", "Average"]);
     } else if (name === "CounterStatsByRep" || name === "OutputStatsByRep") {

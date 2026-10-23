@@ -36,5 +36,6 @@ export async function analyzeExcelReportController(
     reportId: storedReport.reportId,
     report: storedReport.analysis.report,
     semantics: storedReport.analysis.semantics,
+    insights: storedReport.analysis.insights,
   });
 }

@@ -68,6 +68,7 @@ describe("conversations", () => {
     expect(response.body.assistantMessage.content).toContain(
       "Conversation Project",
     );
+    expect(response.body.assistantMessage.content).toContain("Assembler");
     expect(response.body.assistantMessage.content).toContain(
       "Which resource is the bottleneck?",
     );

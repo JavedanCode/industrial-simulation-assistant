@@ -25,6 +25,15 @@ describe("POST /api/reports/analyze", () => {
     expect(response.body.semantics.projectName).toBe("Test Project");
     expect(response.body.semantics.declaredReplicationCount).toBe(2);
     expect(response.body.semantics.totalContinuousRows).toBe(2);
+    expect(response.body.insights.resources).toHaveLength(1);
+    expect(response.body.insights.resources[0].name).toBe("Assembler");
+    expect(
+      response.body.insights.resources[0].instantaneousUtilization.average,
+    ).toBeCloseTo(0.775, 4);
+    expect(response.body.insights.bottleneck.resource.name).toBe("Assembler");
+    expect(response.body.insights.bottleneck.summary).toContain(
+      "most utilized resource",
+    );
   });
 
   it("rejects a request without a report file", async () => {

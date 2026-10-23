@@ -41,7 +41,7 @@ export const mockAiProvider: AiProvider = {
   name: "mock",
 
   async generateReply(input: AiGenerationInput): Promise<string> {
-    const { question, report, semantics } = input;
+    const { question, report, semantics, insights } = input;
     const projectName = semantics.projectName ?? "This report";
     const replicationCount = semantics.declaredReplicationCount;
     const topStatistic = findHighestAverageStatistic(
@@ -70,6 +70,8 @@ export const mockAiProvider: AiProvider = {
     if (report.metadata.timeUnitLabel) {
       lines.push(`The report's time unit is ${report.metadata.timeUnitLabel}.`);
     }
+
+    lines.push(insights.bottleneck.summary);
 
     lines.push(
       `You asked: "${question}".`,

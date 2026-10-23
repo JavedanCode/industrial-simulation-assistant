@@ -10,6 +10,7 @@ import {
   setConversationTitle,
 } from "../storage/conversationRepository.js";
 import { findReportById } from "../storage/reportRepository.js";
+import { buildReportInsights } from "./reportInsightsService.js";
 import type {
   Conversation,
   ConversationDetail,
@@ -108,6 +109,9 @@ export async function sendConversationMessage(
       question: content,
       report: report.analysis.report,
       semantics: report.analysis.semantics,
+      insights:
+        report.analysis.insights ??
+        buildReportInsights(report.analysis.report),
       history,
     });
   } catch (error) {

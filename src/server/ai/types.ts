@@ -1,4 +1,5 @@
 import type { NormalizedReport } from "../../models/NormalizedReport.js";
+import type { ReportInsights } from "../../models/ReportInsights.js";
 import type { ReportSemanticSummary } from "../services/reportSemanticsService.js";
 import type { MessageRole } from "../storage/types.js";
 
@@ -11,6 +12,7 @@ export interface AiGenerationInput {
   question: string;
   report: NormalizedReport;
   semantics: ReportSemanticSummary;
+  insights: ReportInsights;
   history: AiHistoryMessage[];
 }
 

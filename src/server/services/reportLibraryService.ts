@@ -10,6 +10,21 @@ import type {
   StoredReport,
 } from "../storage/types.js";
 import type { ReportAnalysisResult } from "./reportAnalysisService.js";
+import { buildReportInsights } from "./reportInsightsService.js";
+
+function withInsights(report: StoredReport): StoredReport {
+  if (report.analysis.insights) {
+    return report;
+  }
+
+  return {
+    ...report,
+    analysis: {
+      ...report.analysis,
+      insights: buildReportInsights(report.analysis.report),
+    },
+  };
+}
 
 export function storeReport(
   fileName: string,
@@ -29,7 +44,7 @@ export function getStoredReport(reportId: string): StoredReport {
     throw new NotFoundError("Report not found.");
   }
 
-  return report;
+  return withInsights(report);
 }
 
 export function deleteStoredReport(reportId: string): void {

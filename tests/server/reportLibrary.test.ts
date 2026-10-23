@@ -47,6 +47,8 @@ describe("report library", () => {
     expect(response.body.fileName).toBe("test-report.xlsx");
     expect(response.body.report.metadata.projectName).toBe("Stored Project");
     expect(response.body.semantics.projectName).toBe("Stored Project");
+    expect(response.body.insights.resources[0].name).toBe("Assembler");
+    expect(response.body.insights.bottleneck.resource.name).toBe("Assembler");
   });
 
   it("lists stored reports", async () => {

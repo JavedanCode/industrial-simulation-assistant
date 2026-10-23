@@ -25,6 +25,7 @@ export function getReportController(req: Request, res: Response): void {
     createdAt: storedReport.createdAt,
     report: storedReport.analysis.report,
     semantics: storedReport.analysis.semantics,
+    insights: storedReport.analysis.insights,
   });
 }
 

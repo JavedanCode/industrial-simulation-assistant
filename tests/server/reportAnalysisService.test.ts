@@ -82,5 +82,11 @@ describe("analyzeNormalizedReport", () => {
     expect(result.semantics.totalContinuousRows).toBe(2);
     expect(result.semantics.groupedContinuousRows).toBe(2);
     expect(result.semantics.continuousStatistics).toHaveLength(1);
+    expect(result.insights.resources).toHaveLength(1);
+    expect(result.insights.resources[0].name).toBe("assembler");
+    expect(
+      result.insights.resources[0].numberBusy?.average,
+    ).toBeCloseTo(1.5, 4);
+    expect(result.insights.bottleneck.resource).toBeNull();
   });
 });
