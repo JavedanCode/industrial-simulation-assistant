@@ -13,8 +13,7 @@ computed insights, not in facts memorized by a model.
 - Report parsing, normalization, storage, and library APIs: complete.
 - Derived resource, queue, entity, throughput, and bottleneck insights: complete.
 - Conversation and message APIs: complete.
-- AI boundary with a deterministic `mock` provider: complete.
-- Real hosted or local AI provider: not implemented yet.
+- AI boundary with deterministic `mock` and hosted Gemini Flash providers: complete.
 - Optional fine-tuning: not required for the first working chatbot.
 
 ## Requirements
@@ -48,13 +47,16 @@ The SQLite database is created automatically at `data/assistant.db`.
 
 Copy `.env.example` to `.env` and adjust values as needed.
 
-| Variable        | Default            | Description                                         |
-| --------------- | ------------------ | --------------------------------------------------- |
-| `PORT`          | `3000`             | HTTP port.                                          |
-| `DATA_DIR`      | `data`             | Directory used for local storage.                   |
-| `DATABASE_PATH` | `data/assistant.db`| Explicit SQLite path, or `:memory:` for tests.      |
-| `AI_PROVIDER`   | `mock`             | AI implementation. Only `mock` is currently valid.  |
-| `CORS_ORIGIN`   | `*`                | Allowed browser origin.                             |
+| Variable           | Default             | Description                                                     |
+| ------------------ | ------------------- | --------------------------------------------------------------- |
+| `PORT`             | `3000`              | HTTP port.                                                      |
+| `DATA_DIR`         | `data`              | Directory used for local storage.                               |
+| `DATABASE_PATH`    | `data/assistant.db` | Explicit SQLite path, or `:memory:` for tests.                  |
+| `AI_PROVIDER`      | `mock`              | `mock` for offline use, or `gemini` for the hosted Flash model. |
+| `GEMINI_API_KEY`   | unset               | Gemini API key. Required only when `AI_PROVIDER=gemini`.        |
+| `GEMINI_MODEL`     | `gemini-3.8-flash`  | Gemini model identifier.                                        |
+| `GEMINI_TIMEOUT_MS`| `30000`             | Request timeout in milliseconds (1000-120000).                  |
+| `CORS_ORIGIN`      | `*`                 | Allowed browser origin.                                         |
 
 Relative paths are resolved from the project root. The database stays on the
 machine where the backend runs.
@@ -89,8 +91,9 @@ Errors use a JSON body with a human-readable `error`, and usually a stable
 
 Common statuses are `400` for validation or malformed IDs, `404` for missing
 reports/conversations, `413` for oversized uploads, `422` for unreadable Arena
-workbooks, and `500` for unexpected server failures. Uploaded files must be
-`.xlsx` or `.xlsm`.
+workbooks, `500` for configuration or unexpected server failures, and `502`,
+`503`, or `504` when a hosted AI provider fails. Uploaded files must be `.xlsx`
+or `.xlsm`.
 
 ### Upload and analyze a report
 
@@ -245,7 +248,7 @@ These remain for compatibility but should not be used by new clients:
 src/
   models/                     Domain and normalized-report types
   server/
-    ai/                       AiProvider boundary and mock implementation
+    ai/                       AiProvider boundary, prompt grounding, mock + Gemini
     controllers/              HTTP request/response handling
     http/                     AppError and validation helpers
     middleware/               CORS, logging, uploads, central error handling
@@ -279,11 +282,67 @@ interface AiProvider {
 ```
 
 `AiGenerationInput` includes the question, normalized report, semantic summary,
-derived insights, and recent conversation history. The current `mock` provider
-returns deterministic, report-grounded text so the backend can be tested
-without network access.
+derived insights, and recent conversation history. Two providers ship with the
+project:
 
-To add a real provider:
+- `mock` (the default) works entirely offline and returns deterministic,
+  report-grounded text. It is used by the tests and is useful while setting up.
+- `gemini` calls Gemini Flash's hosted API. It needs a free Google AI Studio API
+  key, an internet connection, and `AI_PROVIDER=gemini`.
+
+For a detailed, code-level explanation of how the Gemini request is assembled,
+see [docs/AI_WALKTHROUGH.md](docs/AI_WALKTHROUGH.md).
+
+### Enable Gemini Flash
+
+1. Create an API key at <https://aistudio.google.com/apikey>.
+2. Add these values to `.env` (never commit `.env`):
+
+   ```dotenv
+   AI_PROVIDER=gemini
+   GEMINI_API_KEY=your-key-here
+   GEMINI_MODEL=gemini-3.8-flash
+   GEMINI_TIMEOUT_MS=30000
+   ```
+
+3. Restart the backend and send a conversation message.
+
+The free tier's quotas and model availability can change, so check the current
+limits in Google AI Studio. The backend makes one non-streaming request per
+message and does not retry automatically. A `429` response is returned as a
+clear `AI_PROVIDER_RATE_LIMITED` error so you can try again later.
+
+If `GEMINI_API_KEY` is missing, the report library and deterministic analysis
+still work; only chat requests fail with `AI_PROVIDER_NOT_CONFIGURED`.
+
+### What gets sent to Gemini
+
+The backend remains the source of truth. The prompt contains:
+
+- project metadata and table row counts;
+- a compact catalog of every continuous statistic with its average;
+- the complete computed `insights` object;
+- parser warnings;
+- recent conversation history and the current question.
+
+It does not send the original workbook, the complete normalized workbook, the
+absolute path of the model file, or the API key inside the URL. The key is sent
+in the `x-goog-api-key` header. Report fields are explicitly treated as
+untrusted data so instruction-like text inside an uploaded workbook cannot
+override the grounding rules.
+
+The workbook and SQLite database remain local, but the compact prompt and chat
+messages are sent to Google when Gemini is enabled. Google's current free tier
+may use content to improve its products. Do not use the free tier for
+confidential reports if that tradeoff is unacceptable; a paid Gemini tier or a
+future local provider would avoid it.
+
+The model is allowed to explain general simulation concepts, but it is told not
+to attach report-specific numbers unless they appear in the supplied context.
+If a requested value is absent, the correct answer is that the report does not
+contain it.
+
+### Add another provider
 
 1. Implement `AiProvider` and call it with the structured report data.
 2. Register it in `src/server/ai/index.ts`.
@@ -311,7 +370,12 @@ ignored by git.
 ## Limitations
 
 - Designed for a single local user. There is no authentication or rate limiting.
-- The shipped AI provider is only the deterministic mock.
+- The default AI provider is the deterministic mock. Gemini Flash is optional
+  and requires an API key and network access.
+- With Gemini enabled, report context and chat messages leave the machine. The
+  free tier may use that content to improve Google's products.
+- A failed Gemini request is not retried automatically. The API returns a stable
+  error code instead of silently using stale data.
 - Responses are non-streaming.
 - The parser targets the Arena report layouts covered by the tests. Unknown
   worksheet layouts produce warnings instead of silently inventing data.
