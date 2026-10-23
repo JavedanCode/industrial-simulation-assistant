@@ -3,7 +3,7 @@
 --- Execution ---
 Input file: arena-example-2.xlsm
 Source format: xlsm
-Generated at: 2026-10-20T11:37:02.150Z
+Generated at: 2026-10-23T12:59:54.768Z
 Diagnostic output: local-reports\arena-example-2-diagnostics.txt
 
 --- Worksheets ---
