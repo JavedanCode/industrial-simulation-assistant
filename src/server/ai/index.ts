@@ -2,6 +2,7 @@ import { getConfig } from "../../config.js";
 import { AppError } from "../http/appError.js";
 import { createGeminiAiProvider } from "./geminiAiProvider.js";
 import { mockAiProvider } from "./mockAiProvider.js";
+import { createOllamaAiProvider } from "./ollamaAiProvider.js";
 import type { AiProvider } from "./types.js";
 
 /**
@@ -30,6 +31,13 @@ export function getAiProvider(): AiProvider {
         timeoutMs: config.geminiTimeoutMs,
       });
     }
+
+    case "ollama":
+      return createOllamaAiProvider({
+        baseUrl: config.ollamaBaseUrl,
+        model: config.ollamaModel,
+        timeoutMs: config.ollamaTimeoutMs,
+      });
 
     default:
       throw new AppError(

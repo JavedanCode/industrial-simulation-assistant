@@ -17,7 +17,7 @@ import type {
   ConversationMessage,
 } from "../storage/types.js";
 
-const MAX_HISTORY_MESSAGES = 20;
+const MAX_HISTORY_MESSAGES = 8;
 const MAX_TITLE_LENGTH = 60;
 
 function createTitleFromMessage(content: string): string {
@@ -110,8 +110,7 @@ export async function sendConversationMessage(
       report: report.analysis.report,
       semantics: report.analysis.semantics,
       insights:
-        report.analysis.insights ??
-        buildReportInsights(report.analysis.report),
+        report.analysis.insights ?? buildReportInsights(report.analysis.report),
       history,
     });
   } catch (error) {
