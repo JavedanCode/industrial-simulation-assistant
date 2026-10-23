@@ -1,8 +1,11 @@
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { chatRequestSchema } from "../../schemas/chatSchemas.js";
 import { processMessage } from "../services/chatService.js";
 
-export function chatController(req: Request, res: Response): void {
+export async function chatController(
+  req: Request,
+  res: Response,
+): Promise<void> {
   const validation = chatRequestSchema.safeParse(req.body);
 
   if (!validation.success) {
@@ -16,8 +19,7 @@ export function chatController(req: Request, res: Response): void {
     return;
   }
 
-  const chatRequest = validation.data;
-  const response = processMessage(chatRequest);
+  const response = await processMessage(validation.data);
 
-  res.json({ response });
+  res.json(response);
 }

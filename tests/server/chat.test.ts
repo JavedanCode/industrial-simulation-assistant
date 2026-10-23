@@ -1,47 +1,74 @@
-import { describe, expect, it } from "vitest";
+import { randomUUID } from "node:crypto";
+import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import request from "supertest";
 import app from "../../src/server/app.js";
+import {
+  closeDatabase,
+  resetDatabaseForTests,
+} from "../../src/server/storage/database.js";
+import {
+  createTestConversation,
+  uploadTestReport,
+} from "../helpers/api.js";
 
-const validRequest = {
-  conversationId: "550e8400-e29b-41d4-a716-446655440000",
-  reportId: "550e8400-e29b-41d4-a716-446655440001",
-  message: {
-    id: "550e8400-e29b-41d4-a716-446655440002",
-    role: "user",
-    content: "What is utilization?",
-    createdAt: "2026-10-09T16:00:00Z",
-  },
-  history: [],
+const message = {
+  id: "550e8400-e29b-41d4-a716-446655440002",
+  role: "user",
+  content: "What is utilization?",
+  createdAt: "2026-10-09T16:00:00Z",
 };
 
-describe("POST /api/chat", () => {
-  it("accepts a valid chat request", async () => {
-    const response = await request(app).post("/api/chat").send(validRequest);
+beforeEach(() => {
+  resetDatabaseForTests();
+});
+
+afterAll(() => {
+  closeDatabase();
+});
+
+async function createChatContext() {
+  const reportId = await uploadTestReport(app);
+  const conversationId = await createTestConversation(app, reportId);
+
+  return { reportId, conversationId };
+}
+
+describe("POST /api/chat (deprecated)", () => {
+  it("accepts a valid chat request and replies from the report", async () => {
+    const { reportId, conversationId } = await createChatContext();
+
+    const response = await request(app).post("/api/chat").send({
+      conversationId,
+      reportId,
+      message,
+      history: [],
+    });
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({
-      response: "AI received your message: What is utilization?",
-    });
+    expect(response.body.response).toContain("Test Project");
+    expect(response.body.response).toContain("What is utilization?");
+    expect(response.body.userMessage.role).toBe("user");
+    expect(response.body.assistantMessage.role).toBe("assistant");
   });
 
   it("rejects a request with a missing message", async () => {
-    const { message: _message, ...requestWithoutMessage } = validRequest;
-
-    const response = await request(app)
-      .post("/api/chat")
-      .send(requestWithoutMessage);
+    const response = await request(app).post("/api/chat").send({
+      conversationId: randomUUID(),
+      reportId: randomUUID(),
+      history: [],
+    });
 
     expect(response.status).toBe(400);
     expect(response.body.error).toBe("Invalid chat request");
   });
 
   it("rejects an invalid conversation ID", async () => {
-    const response = await request(app)
-      .post("/api/chat")
-      .send({
-        ...validRequest,
-        conversationId: "not-a-uuid",
-      });
+    const response = await request(app).post("/api/chat").send({
+      conversationId: "not-a-uuid",
+      reportId: randomUUID(),
+      message,
+      history: [],
+    });
 
     expect(response.status).toBe(400);
     expect(response.body.error).toBe("Invalid chat request");
@@ -51,14 +78,42 @@ describe("POST /api/chat", () => {
     const response = await request(app)
       .post("/api/chat")
       .send({
-        ...validRequest,
+        conversationId: randomUUID(),
+        reportId: randomUUID(),
         message: {
-          ...validRequest.message,
+          ...message,
           role: "assistant",
         },
+        history: [],
       });
 
     expect(response.status).toBe(400);
     expect(response.body.error).toBe("Invalid chat request");
+  });
+
+  it("returns 404 when the conversation does not exist", async () => {
+    const response = await request(app).post("/api/chat").send({
+      conversationId: randomUUID(),
+      reportId: randomUUID(),
+      message,
+      history: [],
+    });
+
+    expect(response.status).toBe(404);
+    expect(response.body.error).toBe("Conversation not found.");
+  });
+
+  it("rejects a report ID that does not match the conversation", async () => {
+    const { conversationId } = await createChatContext();
+
+    const response = await request(app).post("/api/chat").send({
+      conversationId,
+      reportId: randomUUID(),
+      message,
+      history: [],
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe("REPORT_MISMATCH");
   });
 });
