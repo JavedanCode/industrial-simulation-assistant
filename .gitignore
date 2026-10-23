@@ -4,3 +4,4 @@ data/
 .env
 .DS_Store
 industrial-analysis-assistant.code-workspace
+local-reports/generated/

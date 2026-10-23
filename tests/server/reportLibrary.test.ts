@@ -4,6 +4,7 @@ import request from "supertest";
 import app from "../../src/server/app.js";
 import {
   closeDatabase,
+  getDatabase,
   resetDatabaseForTests,
 } from "../../src/server/storage/database.js";
 import { createTestReport } from "../helpers/createTestReport.js";
@@ -47,6 +48,30 @@ describe("report library", () => {
     expect(response.body.fileName).toBe("test-report.xlsx");
     expect(response.body.report.metadata.projectName).toBe("Stored Project");
     expect(response.body.semantics.projectName).toBe("Stored Project");
+    expect(response.body.insights.resources[0].name).toBe("Assembler");
+    expect(response.body.insights.bottleneck.resource.name).toBe("Assembler");
+  });
+
+  it("backfills insights for reports stored before insights existed", async () => {
+    const reportId = await uploadTestReport(app, "Legacy Project");
+    const database = getDatabase();
+    const row = database
+      .prepare("SELECT analysis_json FROM reports WHERE id = ?")
+      .get(reportId) as { analysis_json: string };
+    const legacyAnalysis = JSON.parse(row.analysis_json) as Record<
+      string,
+      unknown
+    >;
+
+    delete legacyAnalysis.insights;
+
+    database
+      .prepare("UPDATE reports SET analysis_json = ? WHERE id = ?")
+      .run(JSON.stringify(legacyAnalysis), reportId);
+
+    const response = await request(app).get(`/api/reports/${reportId}`);
+
+    expect(response.status).toBe(200);
     expect(response.body.insights.resources[0].name).toBe("Assembler");
     expect(response.body.insights.bottleneck.resource.name).toBe("Assembler");
   });

@@ -1,5 +1,5 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { basename, extname, join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { extractWorkbook } from "../../src/server/services/reportParserService.js";
 import { normalizeReport } from "../../src/server/services/reportNormalizerService.js";
@@ -9,11 +9,12 @@ import { normalizeReport } from "../../src/server/services/reportNormalizerServi
 const reportFileName = "arena-example-2.xlsm";
 const reportPath = join("local-reports", reportFileName);
 
-// Each input report gets its own diagnostics file, so comparisons do not
-// accidentally overwrite the previous report's output.
+// Generated diagnostics are ignored by git so running tests never rewrites
+// tracked files. Each input report gets its own output file.
 const diagnosticsPath = join(
   "local-reports",
-  `${basename(reportFileName, extname(reportFileName))}-diagnostics.txt`,
+  "generated",
+  `${reportFileName.replace(/\.xlsm?$/i, "")}-diagnostics.txt`,
 );
 
 describe("Arena report diagnostics", () => {
@@ -116,6 +117,7 @@ describe("Arena report diagnostics", () => {
         "",
       ].join("\n");
 
+      mkdirSync(dirname(diagnosticsPath), { recursive: true });
       writeFileSync(diagnosticsPath, diagnostics, "utf8");
 
       expect(existsSync(diagnosticsPath)).toBe(true);

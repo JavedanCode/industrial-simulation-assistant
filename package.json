@@ -15,6 +15,9 @@
   },
   "keywords": [],
   "type": "commonjs",
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "bugs": {
     "url": "https://github.com/JavedanCode/industrial-simulation-assistant/issues"
   },

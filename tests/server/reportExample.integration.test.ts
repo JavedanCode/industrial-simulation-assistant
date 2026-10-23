@@ -1,11 +1,13 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
 import { describe, expect, it } from "vitest";
 import { extractWorkbook } from "../../src/server/services/reportParserService.js";
 import { normalizeReport } from "../../src/server/services/reportNormalizerService.js";
 
 const reportPath = "local-reports/arena-example-1.xlsm";
 const reportFileName = "arena-example-1.xlsm";
-const diagnosticsPath = "local-reports/arena-integration-diagnostics.txt";
+const diagnosticsPath =
+  "local-reports/generated/arena-integration-diagnostics.txt";
 
 describe("Arena example report integration", () => {
   it.skipIf(!existsSync(reportPath))(
@@ -218,6 +220,7 @@ describe("Arena example report integration", () => {
         "",
       ].join("\n");
 
+      mkdirSync(dirname(diagnosticsPath), { recursive: true });
       writeFileSync(diagnosticsPath, diagnostics, "utf8");
 
       // Verify that the diagnostic file was written successfully.
