@@ -14,7 +14,7 @@ async function createWorkbookBuffer(): Promise<Uint8Array> {
   summary.getCell("B3").value = {
     formula: "1/2",
     result: 0.5,
-  };
+  } as ExcelJS.CellValue;
 
   const emptySheet = workbook.addWorksheet("Empty Sheet");
   emptySheet.getCell("A1").value = "Present";
@@ -90,7 +90,7 @@ describe("extractWorkbook", () => {
     worksheet.getCell("B1").value = {
       formula: "A1+1",
       result: 11,
-    };
+    } as ExcelJS.CellValue;
 
     const buffer = new Uint8Array(await workbook.xlsx.writeBuffer());
     const result = await extractWorkbook(buffer, "formula-test.xlsx");
@@ -108,7 +108,7 @@ describe("extractWorkbook", () => {
 
     worksheet.getCell("A1").value = {
       formula: "1+1",
-    };
+    } as ExcelJS.CellValue;
 
     worksheet.getCell("B1").value = 0;
 
