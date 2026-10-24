@@ -32,7 +32,11 @@ test("saved text/documents survive reopen; failed insert cleans up its copy", as
   const management = loadModule("report_management", () => {
     throw Error("Unexpected import");
   });
-  const builder = loadModule("report_submission", () => {
+  const builder = loadModule("report_submission", (name) => {
+    if (name === "./report_file_types")
+      return loadModule("report_file_types", () => {
+        throw Error("Unexpected import");
+      });
     throw Error("Unexpected import");
   });
   class File {
@@ -228,7 +232,11 @@ test("browser rename/delete updates only the selected session record", async () 
   const management = loadModule("report_management", () => {
     throw Error("Unexpected import");
   });
-  const builder = loadModule("report_submission", () => {
+  const builder = loadModule("report_submission", (name) => {
+    if (name === "./report_file_types")
+      return loadModule("report_file_types", () => {
+        throw Error("Unexpected import");
+      });
     throw Error("Unexpected import");
   });
   const store = loadModule("report_storage.web", (name) => {

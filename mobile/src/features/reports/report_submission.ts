@@ -1,5 +1,6 @@
 import type { DocumentPickerAsset } from "expo-document-picker";
 import type { SavedReport } from "./report_types";
+import { isExcelReport, REPORT_FORMAT_ERROR } from "./report_file_types";
 
 export type ReportSubmissionInput = {
   source: "document";
@@ -14,9 +15,9 @@ export function buildReport(
     input.source !== "document" ||
     !input.document ||
     !input.document.uri ||
-    !/\.(xls|xlsx|xlsm)$/i.test(input.document.name)
+    !isExcelReport(input.document.name)
   ) {
-    throw new Error("Select a supported document first.");
+    throw new Error(REPORT_FORMAT_ERROR);
   }
   return {
     id,

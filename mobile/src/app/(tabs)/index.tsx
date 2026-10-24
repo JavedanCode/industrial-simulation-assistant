@@ -44,7 +44,7 @@ export default function HomeScreen() {
             </ThemedText>
 
             <ThemedText themeColor="textSecondary" style={styles.centerText}>
-              Select a document to start your report
+              Select an Arena Excel report to get started
             </ThemedText>
           </ThemedView>
 
@@ -60,7 +60,7 @@ export default function HomeScreen() {
               ]}
             >
               <ThemedText style={styles.documentButtonText}>
-                {selectedDoc ? "Replace document" : "Upload document"}
+                {selectedDoc ? "Replace document" : "Select Excel report"}
               </ThemedText>
             </Pressable>
 
