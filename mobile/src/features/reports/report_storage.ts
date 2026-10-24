@@ -1,7 +1,7 @@
 import { openDatabaseAsync, type SQLiteDatabase } from "expo-sqlite";
 import { Directory, File, Paths } from "expo-file-system";
 import { buildReport, type ReportSubmissionInput } from "./report_submission";
-import type { SavedReport } from "./report_types";
+import type { SavedReport, ReportSync } from "./report_types";
 import { validateReportTitle } from "./report_management";
 
 let dbPromise: Promise<SQLiteDatabase> | undefined;
@@ -16,6 +16,9 @@ function initReportsDb() {
           source TEXT NOT NULL CHECK(source IN ('text','document')),
           status TEXT NOT NULL, content TEXT, documentName TEXT, documentPath TEXT,
           mimeType TEXT, size INTEGER
+        );
+        CREATE TABLE IF NOT EXISTS report_sync (
+          report_id TEXT PRIMARY KEY NOT NULL, data TEXT NOT NULL
         );`);
         return db;
       } catch (error) {
@@ -31,9 +34,45 @@ function initReportsDb() {
 
 export async function loadReports(): Promise<SavedReport[]> {
   const db = await initReportsDb();
-  return db.getAllAsync<SavedReport>(
+  const reports = await db.getAllAsync<SavedReport>(
     "SELECT * FROM reports ORDER BY createdAt DESC, id DESC",
   );
+  const rows = await db.getAllAsync<{ report_id: string; data: string }>(
+    "SELECT * FROM report_sync",
+  );
+  return reports.map((report) => {
+    const row = rows.find((row) => row.report_id === report.id);
+    if (!row) return report;
+    const sync = JSON.parse(row.data) as ReportSync;
+    // A process restart ends in-flight requests; retain IDs so retry is safe.
+    return {
+      ...report,
+      sync: {
+        ...sync,
+        error:
+          report.status === "processing"
+            ? "Submission was interrupted. Retry to recover it."
+            : sync.error,
+      },
+      status: report.status === "processing" ? "failed" : report.status,
+    };
+  });
+}
+
+export async function saveReportSync(
+  id: string,
+  sync: ReportSync,
+  status: SavedReport["status"],
+) {
+  const db = await initReportsDb();
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    await tx.runAsync(
+      "INSERT INTO report_sync (report_id, data) VALUES (?, ?) ON CONFLICT(report_id) DO UPDATE SET data = excluded.data",
+      id,
+      JSON.stringify(sync),
+    );
+    await tx.runAsync("UPDATE reports SET status = ? WHERE id = ?", status, id);
+  });
 }
 
 export async function renameReport(id: string, value: string): Promise<string> {
@@ -55,7 +94,10 @@ export async function deleteReport(id: string): Promise<void> {
     "SELECT * FROM reports WHERE id = ?",
     id,
   );
-  if (!report) return; // Repeating a completed deletion is safe.
+  if (!report) {
+    await db.runAsync("DELETE FROM report_sync WHERE report_id = ?", id);
+    return; // Finish any metadata cleanup left by an interrupted deletion.
+  }
   if (report.documentPath) {
     // Only remove the app-owned copy for this ID, never the original picked file.
     const fileName = report.documentPath.slice("reports/".length);
@@ -72,6 +114,7 @@ export async function deleteReport(id: string): Promise<void> {
   // Keep the row until file cleanup succeeds. A failed final delete can be retried
   // even if the file is already gone; files and SQLite cannot share a transaction.
   await db.runAsync("DELETE FROM reports WHERE id = ?", id);
+  await db.runAsync("DELETE FROM report_sync WHERE report_id = ?", id);
 }
 
 export async function saveReport(

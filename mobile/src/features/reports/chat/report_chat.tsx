@@ -1,5 +1,5 @@
 import { SymbolView } from "expo-symbols";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -15,6 +15,8 @@ import { useTheme } from "@/hooks/use-theme";
 import type { chatMsg } from "./chat_types";
 import { MsgBubble } from "./msg_bubble";
 import { MAX_MSG_LENGTH, useReportChat } from "./report_chat_context";
+import { useReports } from "../reports_context";
+import { AnalysisSummary } from "./analysis_summary";
 
 const MIN_INPUT_HEIGHT = 44;
 const MAX_INPUT_HEIGHT = 132;
@@ -34,13 +36,38 @@ export function ReportChat({ reportId }: ReportChatProps) {
     saveErrors,
     retryLoad,
     retrySave,
+    refreshChat,
+    refreshing,
   } = useReportChat();
-  const { msgs, draft, errorMsg, replyStatus, failedMsg, pendingMsgId } =
-    getConversation(reportId);
+  const { reports } = useReports();
+  const report = reports.find((item) => item.id === reportId);
+  const openedRef = useRef(false);
+  useEffect(() => {
+    if (
+      storageStatus === "ready" &&
+      !openedRef.current &&
+      report?.sync?.conversationId
+    ) {
+      openedRef.current = true;
+      void refreshChat(reportId);
+    }
+  }, [storageStatus, report?.sync?.conversationId, refreshChat, reportId]);
+  const {
+    msgs,
+    archivedMsgs,
+    draft,
+    errorMsg,
+    replyStatus,
+    failedMsg,
+    pendingMsgId,
+  } = getConversation(reportId);
+  const [showArchive, setShowArchive] = useState(false);
   const [inputHeight, setInputHeight] = useState(MIN_INPUT_HEIGHT);
   const listRef = useRef<FlatList<chatMsg>>(null);
   const scrollAfterSend = useRef(false);
   const canSend =
+    !refreshing[reportId] &&
+    !!report?.sync?.conversationId &&
     replyStatus === "idle" &&
     draft.trim().length > 0 &&
     draft.length <= MAX_MSG_LENGTH;
@@ -91,6 +118,39 @@ export function ReportChat({ reportId }: ReportChatProps) {
         data={msgs}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <MsgBubble message={item} />}
+        ListHeaderComponent={
+          <ThemedView>
+            {report?.sync?.analysis && (
+              <AnalysisSummary analysis={report.sync.analysis} />
+            )}
+            {!!archivedMsgs?.length && (
+              <>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: showArchive }}
+                  onPress={() => setShowArchive((value) => !value)}
+                  style={styles.retryButton}
+                >
+                  <ThemedText type="small">
+                    {showArchive ? "Hide" : "Show"} earlier local messages (
+                    {archivedMsgs.length})
+                  </ThemedText>
+                </Pressable>
+                {showArchive && (
+                  <ThemedView style={{ gap: 16, paddingVertical: 16 }}>
+                    <ThemedText themeColor="textSecondary">
+                      Earlier local/demo messages. These are not part of the
+                      backend conversation.
+                    </ThemedText>
+                    {archivedMsgs.map((msg) => (
+                      <MsgBubble key={msg.id} message={msg} />
+                    ))}
+                  </ThemedView>
+                )}
+              </>
+            )}
+          </ThemedView>
+        }
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
         onContentSizeChange={() => {
@@ -100,15 +160,29 @@ export function ReportChat({ reportId }: ReportChatProps) {
           }
         }}
         ListEmptyComponent={
-          <ThemedText themeColor="textSecondary">No messages yet.</ThemedText>
+          <ThemedText themeColor="textSecondary">
+            Ask a question about the analysis above.
+          </ThemedText>
         }
       />
 
       <ThemedView style={styles.composer}>
+        <Pressable
+          accessibilityRole="button"
+          disabled={replyStatus === "loading" || !!refreshing[reportId]}
+          onPress={() => void refreshChat(reportId)}
+          style={styles.retryButton}
+        >
+          <ThemedText type="small" themeColor="textSecondary">
+            {refreshing[reportId]
+              ? "Refreshing conversation…"
+              : "Refresh conversation"}
+          </ThemedText>
+        </Pressable>
         {Platform.OS === "web" && (
           <ThemedText type="small" themeColor="textSecondary">
-            Browser demo: chats reset on refresh. Device saving is available on
-            Android and iOS.
+            Local browser history resets on refresh. Submitted messages are also
+            stored by the backend.
           </ThemedText>
         )}
         {saveErrors[reportId] && (
@@ -133,7 +207,7 @@ export function ReportChat({ reportId }: ReportChatProps) {
               themeColor="textSecondary"
               accessibilityLiveRegion="polite"
             >
-              Analyzing… (demo)
+              Waiting for reply…
             </ThemedText>
           </ThemedView>
         )}

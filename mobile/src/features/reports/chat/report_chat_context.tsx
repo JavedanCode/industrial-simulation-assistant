@@ -8,9 +8,11 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { demoMessagesByReport as demoMsgsByReport } from "../demo-msgs";
+import { reconcileHistory } from "./reconcile_history";
 import type { chatMsg, Conversations, ReportConversation } from "./chat_types";
-import { getDemoReply } from "./demo_chat_service";
+import { loadHistory, sendApiMsg } from "@/api/reports";
+import { getApiUrl } from "@/api/client";
+import { useReports } from "../reports_context";
 import {
   loadConversations,
   saveConversation,
@@ -30,13 +32,15 @@ type ReportChatValue = {
   sendMsg: (reportId: string) => boolean;
   retryMsg: (reportId: string) => void;
   deleteConversation: (reportId: string) => Promise<void>;
+  refreshChat: (reportId: string) => Promise<void>;
+  refreshing: Partial<Record<string, boolean>>;
 };
 
 const ReportChatContext = createContext<ReportChatValue | null>(null);
 
-function initialConversation(reportId: string): ReportConversation {
+function initialConversation(_reportId: string): ReportConversation {
   return {
-    msgs: [...(demoMsgsByReport[reportId] ?? [])],
+    msgs: [],
     draft: "",
     errorMsg: "",
     replyStatus: "idle",
@@ -46,6 +50,10 @@ function initialConversation(reportId: string): ReportConversation {
 }
 
 export function ReportChatProvider({ children }: { children: ReactNode }) {
+  const { reports } = useReports();
+  const [refreshing, setRefreshing] = useState<
+    Partial<Record<string, boolean>>
+  >({});
   const [conversations, setConversations] = useState<Conversations>({});
   // Event handlers use the latest state even before React renders again.
   const conversationsRef = useRef<Conversations>({});
@@ -191,7 +199,55 @@ export function ReportChatProvider({ children }: { children: ReactNode }) {
     updateConversation(reportId, { draft: text, errorMsg: "" }, true);
   }
 
-  async function requestReply(reportId: string, msg: chatMsg, retry = false) {
+  function serverConversationId(reportId: string) {
+    const report = reports.find((item) => item.id === reportId);
+    if (!report?.sync?.conversationId)
+      throw new Error(
+        "Submit this report for analysis before starting its chat.",
+      );
+    if (report.sync.apiUrl !== getApiUrl())
+      throw new Error(
+        "This report belongs to a different API address. Restore the original address in mobile/.env.local.",
+      );
+    return report.sync.conversationId;
+  }
+
+  async function refreshChat(reportId: string) {
+    if (
+      !readyRef.current ||
+      requestsRef.current.has(reportId) ||
+      deletingRef.current.has(reportId)
+    )
+      return;
+    const controller = new AbortController();
+    requestsRef.current.set(reportId, controller);
+    setRefreshing((previous) => ({ ...previous, [reportId]: true }));
+    try {
+      const msgs = await loadHistory(
+        serverConversationId(reportId),
+        controller.signal,
+      );
+      if (controller.signal.aborted) return;
+      const current =
+        conversationsRef.current[reportId] ?? initialConversation(reportId);
+      updateConversation(reportId, reconcileHistory(current, msgs));
+    } catch (error) {
+      if (!controller.signal.aborted)
+        updateConversation(reportId, {
+          errorMsg:
+            error instanceof Error
+              ? error.message
+              : "Couldn’t refresh conversation. Saved messages are still available.",
+        });
+    } finally {
+      if (requestsRef.current.get(reportId) === controller)
+        requestsRef.current.delete(reportId);
+      if (activeRef.current)
+        setRefreshing((previous) => ({ ...previous, [reportId]: false }));
+    }
+  }
+
+  async function requestReply(reportId: string, msg: chatMsg) {
     if (requestsRef.current.has(reportId) || deletingRef.current.has(reportId))
       return;
     const controller = new AbortController();
@@ -203,29 +259,36 @@ export function ReportChatProvider({ children }: { children: ReactNode }) {
     });
 
     try {
-      const content = await getDemoReply(msg, {
-        signal: controller.signal,
-        retry,
-      });
+      // Persist the client ID before sending, so restart/retry reuses the same request.
+      await saveConversation(reportId, conversationsRef.current[reportId]!);
+      const result = await sendApiMsg(
+        serverConversationId(reportId),
+        msg,
+        controller.signal,
+      );
       if (controller.signal.aborted) return;
-      const reply: chatMsg = {
-        id: randomUUID(),
-        role: "assistant",
-        content,
-        createdAt: new Date().toISOString(),
-      };
       const current = conversationsRef.current[reportId]!;
       updateConversation(reportId, {
-        msgs: [...current.msgs, reply],
+        msgs: [
+          ...current.msgs
+            .filter((item) => item.id !== result.assistant.id)
+            .map((item) => (item.id === msg.id ? result.user : item)),
+          result.assistant,
+        ],
         replyStatus: "idle",
         pendingMsgId: null,
+        errorMsg: "",
       });
-    } catch {
+    } catch (error) {
       if (controller.signal.aborted) return;
       updateConversation(reportId, {
         failedMsg: msg,
         replyStatus: "failed",
         pendingMsgId: null,
+        errorMsg:
+          error instanceof Error
+            ? error.message
+            : "Couldn’t get a reply. Retry to continue.",
       });
     } finally {
       if (requestsRef.current.get(reportId) === controller)
@@ -276,7 +339,7 @@ export function ReportChatProvider({ children }: { children: ReactNode }) {
     if (!readyRef.current) return;
     const current = conversationsRef.current[reportId];
     if (current?.replyStatus === "failed" && current.failedMsg) {
-      void requestReply(reportId, current.failedMsg, true);
+      void requestReply(reportId, current.failedMsg);
     }
   }
 
@@ -347,6 +410,8 @@ export function ReportChatProvider({ children }: { children: ReactNode }) {
         retryLoad,
         retrySave,
         deleteConversation,
+        refreshChat,
+        refreshing,
       }}
     >
       {children}

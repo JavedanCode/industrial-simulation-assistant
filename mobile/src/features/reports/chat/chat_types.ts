@@ -6,6 +6,7 @@ export type chatMsg = {
 };
 
 export type ReportConversation = {
+  archivedMsgs?: chatMsg[];
   msgs: chatMsg[];
   draft: string;
   errorMsg: string;

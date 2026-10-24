@@ -23,7 +23,7 @@ export default function ReportDetailsScreen() {
   const theme = useTheme();
   const [showDetails, setShowDetails] = useState(false);
 
-  const { reports, status, retryLoad } = useReports();
+  const { reports, status, retryLoad, submitReport } = useReports();
   const report = reports.find((item) => item.id === id);
 
   function handleBack() {
@@ -68,7 +68,7 @@ export default function ReportDetailsScreen() {
               {report && (
                 <>
                   <ThemedText type="small" themeColor="textSecondary">
-                    Demo
+                    {report.sync?.serverReportId ? "Connected" : "Local"}
                   </ThemedText>
                   <Pressable
                     accessibilityRole="button"
@@ -138,40 +138,50 @@ export default function ReportDetailsScreen() {
                     </ThemedText>
                     <ThemedText type="small" themeColor="textSecondary">
                       {Platform.OS === "web"
-                        ? "Browser demo: chats reset on refresh. Replies are simulated."
-                        : "Chats are saved on this device when storage is available. Replies are simulated; nothing is sent to a server."}
+                        ? "Browser history lasts for this session. Submitted reports and messages are also stored by the backend."
+                        : "Saved on this device. Submitted reports and chat messages are also stored by the backend."}
                     </ThemedText>
                   </ThemedView>
                 )}
 
-                {report.status === "awaiting_backend" && (
-                  <ThemedView style={styles.statusNote}>
-                    <ThemedText type="small" themeColor="textSecondary">
-                      Awaiting backend — no upload or analysis has started. Chat
-                      replies are demos.
-                    </ThemedText>
-                  </ThemedView>
-                )}
-                {report.status === "ready" ||
-                report.status === "awaiting_backend" ? (
+                {report.status === "ready" && report.sync?.conversationId ? (
                   <ReportChat key={report.id} reportId={report.id} />
                 ) : (
                   <ThemedView type="backgroundElement" style={styles.card}>
                     <ThemedText type="smallBold">
                       {report.status === "processing"
                         ? "Processing"
-                        : "Analysis failed"}
+                        : report.status === "failed"
+                          ? "Submission needs attention"
+                          : "Not uploaded"}
                     </ThemedText>
 
                     <ThemedText>
                       {report.status === "processing"
-                        ? "This example represents a report waiting for analysis."
-                        : "This example represents a report whose analysis failed."}
+                        ? "Uploading and analyzing your report. You can return to Reports while this finishes."
+                        : (report.sync?.error ??
+                          (report.source === "document"
+                            ? "Submit this saved document to receive its analysis."
+                            : "This is an archived text report. Select an Excel document from Home to use the backend."))}
                     </ThemedText>
 
-                    <ThemedText type="small" themeColor="textSecondary">
-                      Demo status. No backend request is running.
-                    </ThemedText>
+                    {report.status === "processing" ? (
+                      <ActivityIndicator color={theme.textSecondary} />
+                    ) : (
+                      report.source === "document" && (
+                        <Pressable
+                          accessibilityRole="button"
+                          onPress={() => void submitReport(report.id)}
+                          style={styles.retryButton}
+                        >
+                          <ThemedText type="smallBold">
+                            {report.status === "failed"
+                              ? "Retry submission"
+                              : "Submit for analysis"}
+                          </ThemedText>
+                        </Pressable>
+                      )
+                    )}
                   </ThemedView>
                 )}
               </>
@@ -218,7 +228,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignSelf: "flex-start",
   },
-  statusNote: { paddingHorizontal: 20, paddingVertical: 8 },
+  retryButton: { minHeight: 48, padding: 12, justifyContent: "center" },
   card: {
     marginHorizontal: 20,
     marginVertical: 12,

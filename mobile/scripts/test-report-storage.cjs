@@ -82,6 +82,21 @@ test("saved text/documents survive reopen; failed insert cleans up its copy", as
             getFirstAsync: async (sql, ...params) =>
               raw.prepare(sql).get(...params) ?? null,
             closeAsync: async () => raw.close(),
+            withExclusiveTransactionAsync: async (work) => {
+              raw.exec("BEGIN IMMEDIATE");
+              try {
+                await work({
+                  runAsync: async (sql, ...params) => {
+                    if (failInsert) throw Error("Simulated write failure");
+                    return raw.prepare(sql).run(...params);
+                  },
+                });
+                raw.exec("COMMIT");
+              } catch (error) {
+                raw.exec("ROLLBACK");
+                throw error;
+              }
+            },
           }),
         };
       throw Error(name);
@@ -122,6 +137,22 @@ test("saved text/documents survive reopen; failed insert cleans up its copy", as
       },
     };
     const doc = await store.saveReport(randomUUID(), input);
+    const sync = {
+      apiUrl: "http://example.test/api",
+      serverReportId: randomUUID(),
+      conversationId: null,
+      analysis: { markdown: "Analysis", utilization: [] },
+      error: null,
+    };
+    await store.saveReportSync(doc.id, sync, "processing");
+    const interrupted = (await store.loadReports()).find(
+      (item) => item.id === doc.id,
+    );
+    assert.equal(interrupted.status, "failed");
+    assert.equal(interrupted.sync.serverReportId, sync.serverReportId);
+    assert.match(interrupted.sync.error, /interrupted/);
+    sync.conversationId = randomUUID();
+    await store.saveReportSync(doc.id, sync, "ready");
     await assert.rejects(
       store.renameReport(doc.id, "   "),
       /Enter a report name/,
@@ -183,6 +214,10 @@ test("saved text/documents survive reopen; failed insert cleans up its copy", as
     raw = new DatabaseSync(dbPath);
     store = storage();
     const saved = await store.loadReports();
+    const linked = saved.find((item) => item.id === doc.id);
+    assert.equal(linked.sync.conversationId, sync.conversationId);
+    assert.equal(linked.sync.analysis.markdown, "Analysis");
+    assert.equal(linked.status, "ready");
     assert.equal(saved.length, 2);
     assert.equal(
       saved.find((item) => item.id === doc.id).title,

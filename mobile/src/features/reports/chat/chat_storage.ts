@@ -35,6 +35,14 @@ export function initChatDb() {
             UNIQUE(report_id, position)
           );
         `);
+        const columns = await db.getAllAsync<{ name: string }>(
+          "PRAGMA table_info(chat_conversations)",
+        );
+        if (!columns.some((column) => column.name === "archived_msgs")) {
+          await db.execAsync(
+            "ALTER TABLE chat_conversations ADD COLUMN archived_msgs TEXT NOT NULL DEFAULT '[]'",
+          );
+        }
         return db;
       } catch (error) {
         await db.closeAsync();
@@ -57,6 +65,7 @@ export function loadConversations(): Promise<Conversations> {
       reply_status: ReportConversation["replyStatus"];
       failed_msg_id: string | null;
       pending_msg_id: string | null;
+      archived_msgs: string;
     }>("SELECT * FROM chat_conversations");
     const msgs = await db.getAllAsync<chatMsg & { report_id: string }>(
       "SELECT id, report_id, role, content, created_at AS createdAt FROM chat_msgs ORDER BY report_id, position",
@@ -80,6 +89,9 @@ export function loadConversations(): Promise<Conversations> {
       if ((row.reply_status !== "idle" || interrupted) && !failedMsg)
         throw new Error("Saved request has no matching user msg.");
       result[row.report_id] = {
+        ...(row.archived_msgs !== "[]"
+          ? { archivedMsgs: JSON.parse(row.archived_msgs) as chatMsg[] }
+          : {}),
         msgs: reportMsgs,
         draft: row.draft,
         errorMsg: "",
@@ -100,15 +112,17 @@ export function saveConversation(
     const db = await initChatDb();
     await db.withExclusiveTransactionAsync(async (tx) => {
       await tx.runAsync(
-        `INSERT INTO chat_conversations (report_id, draft, reply_status, failed_msg_id, pending_msg_id)
-        VALUES (?, ?, ?, ?, ?) ON CONFLICT(report_id) DO UPDATE SET
+        `INSERT INTO chat_conversations (report_id, draft, reply_status, failed_msg_id, pending_msg_id, archived_msgs)
+        VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(report_id) DO UPDATE SET
         draft=excluded.draft, reply_status=excluded.reply_status,
-        failed_msg_id=excluded.failed_msg_id, pending_msg_id=excluded.pending_msg_id`,
+        failed_msg_id=excluded.failed_msg_id, pending_msg_id=excluded.pending_msg_id,
+        archived_msgs=excluded.archived_msgs`,
         reportId,
         conversation.draft,
         conversation.replyStatus,
         conversation.failedMsg?.id ?? null,
         conversation.pendingMsgId,
+        JSON.stringify(conversation.archivedMsgs ?? []),
       );
       await tx.runAsync("DELETE FROM chat_msgs WHERE report_id = ?", reportId);
       for (const [position, msg] of conversation.msgs.entries()) {

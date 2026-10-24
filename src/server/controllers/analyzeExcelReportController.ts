@@ -1,4 +1,7 @@
 import type { Request, Response } from "express";
+import { createHash } from "node:crypto";
+import { requestKey, readReceipt, saveReceipt } from "../http/idempotency.js";
+import { withTransaction } from "../storage/database.js";
 import { AppError } from "../http/appError.js";
 import { analyzeExcelReport } from "../services/excelReportAnalysisService.js";
 import { storeReport } from "../services/reportLibraryService.js";
@@ -15,13 +18,20 @@ export async function analyzeExcelReportController(
     );
   }
 
+  const key = requestKey(req.get("Idempotency-Key"));
+  const fingerprint = createHash("sha256")
+    .update(req.file.originalname)
+    .update(req.file.buffer)
+    .digest("hex");
+  const prior = readReceipt("upload", key, fingerprint);
+  if (prior) {
+    res.status(201).json(prior);
+    return;
+  }
   let analysis;
 
   try {
-    analysis = await analyzeExcelReport(
-      req.file.buffer,
-      req.file.originalname,
-    );
+    analysis = await analyzeExcelReport(req.file.buffer, req.file.originalname);
   } catch {
     throw new AppError(
       422,
@@ -30,12 +40,18 @@ export async function analyzeExcelReportController(
     );
   }
 
-  const storedReport = storeReport(req.file.originalname, analysis);
-
-  res.status(201).json({
-    reportId: storedReport.reportId,
-    report: storedReport.analysis.report,
-    semantics: storedReport.analysis.semantics,
-    insights: storedReport.analysis.insights,
+  const fileName = req.file.originalname;
+  const result = withTransaction(() => {
+    // Parsing can overlap, so check again before inserting anything.
+    const existing = readReceipt("upload", key, fingerprint);
+    if (existing) return existing;
+    const storedReport = storeReport(fileName, analysis);
+    const response = {
+      reportId: storedReport.reportId,
+      ...storedReport.analysis,
+    };
+    saveReceipt("upload", key, fingerprint, storedReport.reportId, response);
+    return response;
   });
+  res.status(201).json(result);
 }

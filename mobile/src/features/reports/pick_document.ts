@@ -9,7 +9,9 @@ import {
 
 export async function pickDoc() {
   const result = await DocumentPicker.getDocumentAsync({
-    type: REPORT_FILE_TYPES,
+    // Android providers sometimes label .xlsm as generic binary/Excel files.
+    // Show them regardless of MIME label; validate the filename below.
+    type: Platform.OS === "android" ? "*/*" : REPORT_FILE_TYPES,
     multiple: false,
     // Android: retain the URI granted by the system picker. Saving copies it
     // into Paths.document; the picker's cache may be outside Expo Go's scope.

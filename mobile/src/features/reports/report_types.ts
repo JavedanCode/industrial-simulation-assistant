@@ -1,3 +1,13 @@
+import type { AnalysisPresentation } from "@/api/contracts";
+
+export type ReportSync = {
+  apiUrl: string;
+  serverReportId: string | null;
+  conversationId: string | null;
+  analysis: AnalysisPresentation | null;
+  error: string | null;
+};
+
 export type ReportSummery = {
   id: string;
   title: string;
@@ -7,6 +17,7 @@ export type ReportSummery = {
 };
 
 export type SavedReport = ReportSummery & {
+  sync?: ReportSync;
   content: string | null;
   documentName: string | null;
   documentPath: string | null;
@@ -15,7 +26,7 @@ export type SavedReport = ReportSummery & {
 };
 
 export const reportStatusLabels: Record<ReportSummery["status"], string> = {
-  awaiting_backend: "Awaiting backend",
+  awaiting_backend: "Not uploaded",
   processing: "Processing",
   ready: "Analysis ready",
   failed: "Analysis failed",

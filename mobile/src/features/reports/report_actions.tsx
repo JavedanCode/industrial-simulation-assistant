@@ -125,8 +125,8 @@ export function ReportActions({ report, onClose }: Props) {
                     ]}
                   />
                   <ThemedText type="small" themeColor="textSecondary">
-                    Changes the display name only. The original filename stays
-                    the same.
+                    Changes the display name on this device only. The original
+                    and server filenames stay the same.
                   </ThemedText>
                 </>
               ) : (
@@ -134,7 +134,7 @@ export function ReportActions({ report, onClose }: Props) {
                   <ThemedText>
                     Delete this report, its saved document copy, and all its
                     chat messages from this device? This cannot be undone. The
-                    original file is kept.
+                    original file and any backend copies are kept.
                   </ThemedText>
                   {storageStatus !== "ready" && (
                     <View style={styles.status}>

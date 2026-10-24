@@ -17,6 +17,7 @@ import {
 } from "@/features/settings/settings_context";
 import { useReports } from "@/features/reports/reports_context";
 import { useTheme } from "@/hooks/use-theme";
+import { ApiConnection } from "@/features/settings/api_connection";
 
 const choices: { value: AppearanceChoice; label: string }[] = [
   { value: "system", label: "Use device setting" },
@@ -33,6 +34,7 @@ export default function SettingsScreen() {
       <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
         <ScrollView contentContainerStyle={styles.content}>
           <ThemedText type="subtitle">Settings</ThemedText>
+          <ApiConnection />
           <ThemedView type="backgroundElement" style={styles.card}>
             <ThemedText type="smallBold">Appearance</ThemedText>
             {choices.map(({ value, label }) => (
@@ -79,12 +81,13 @@ export default function SettingsScreen() {
             </ThemedText>
             <ThemedText themeColor="textSecondary">
               {Platform.OS === "web"
-                ? "Browser reports and chats reset when you refresh. Appearance is saved in this browser."
-                : "Reports and chats are saved on this device. They are not synced or backed up to a server. Removing the app can remove its saved data."}
+                ? "Local browser history resets when you refresh. Submitted reports and messages remain on the backend."
+                : "Reports and chats are cached on this device. Submitted reports and messages are also stored by the backend. Local drafts and display names are not synced."}
             </ThemedText>
             <ThemedText themeColor="textSecondary">
               To rename or delete a report and its chat, open the report’s menu
-              in Reports. Your original document is kept.
+              in Reports. Deletion removes this device’s copy only. Your
+              original document and backend records are kept.
             </ThemedText>
             <Pressable
               accessibilityRole="button"
@@ -100,10 +103,12 @@ export default function SettingsScreen() {
             <ThemedText themeColor="textSecondary">
               Version {Constants.expoConfig?.version ?? "Unknown"}
             </ThemedText>
-            <ThemedText>Supported reports: .xls, .xlsx and .xlsm</ThemedText>
+            <ThemedText>
+              Supported reports: Arena .xlsx and .xlsm, up to 10 MB
+            </ThemedText>
             <ThemedText themeColor="textSecondary">
-              Demo mode: analysis and chat replies are simulated. Saving a
-              report does not upload it. Backend integration is pending.
+              Analysis and replies come from the configured backend. Chat may
+              use a mock provider if the backend is configured for testing.
             </ThemedText>
           </ThemedView>
         </ScrollView>

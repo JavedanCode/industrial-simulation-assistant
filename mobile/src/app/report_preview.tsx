@@ -20,8 +20,7 @@ import { pickDoc } from "@/features/reports/pick_document";
 type SubmissionStatus = "idle" | "submitting" | "success" | "error";
 
 export default function ReportPreviewScreen() {
-  const { selectedDoc, setSelectedDoc, clearDraft } =
-    useReportDraft();
+  const { selectedDoc, setSelectedDoc, clearDraft } = useReportDraft();
 
   const { createReport, status: storageStatus, retryLoad } = useReports();
   const savingRef = useRef(false);
@@ -147,13 +146,13 @@ export default function ReportPreviewScreen() {
             </ThemedText>
 
             <ThemedText themeColor="textSecondary">
-              Document will be saved locally. Extraction requires the
-              backend.
+              Submit this document to the backend for analysis. A copy is kept
+              on your device.
             </ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
               {Platform.OS === "web"
-                ? "Browser demo: this report will be kept only until refresh."
-                : "Not saved yet. Saving does not upload or analyze this report."}
+                ? "Local browser history lasts until refresh. The backend also stores submitted reports."
+                : "Supported: Arena .xlsx or .xlsm reports, up to 10 MB."}
             </ThemedText>
           </ThemedView>
 
@@ -216,7 +215,7 @@ export default function ReportPreviewScreen() {
                   ? "Try again"
                   : status === "success"
                     ? "Saved"
-                    : "Save report"}
+                    : "Submit report"}
             </ThemedText>
           </Pressable>
 
@@ -226,7 +225,7 @@ export default function ReportPreviewScreen() {
 
           {status === "success" && (
             <ThemedText accessibilityLiveRegion="polite">
-              Report saved. No backend request was sent.
+              Report saved. Opening submission progress…
             </ThemedText>
           )}
         </ScrollView>

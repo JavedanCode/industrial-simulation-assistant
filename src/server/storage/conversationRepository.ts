@@ -77,9 +77,7 @@ export function findConversationById(
   return row ? mapConversation(row) : null;
 }
 
-export function listConversationsByReportId(
-  reportId: string,
-): Conversation[] {
+export function listConversationsByReportId(reportId: string): Conversation[] {
   const rows = getDatabase()
     .prepare(
       `
@@ -123,8 +121,8 @@ export function appendMessage(
   conversationId: string,
   role: MessageRole,
   content: string,
+  messageId: string = randomUUID(),
 ): ConversationMessage {
-  const messageId = randomUUID();
   const createdAt = new Date().toISOString();
 
   return withTransaction(() => {

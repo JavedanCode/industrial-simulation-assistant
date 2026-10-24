@@ -1,4 +1,5 @@
 import { AppError, NotFoundError } from "../http/appError.js";
+import { createHash } from "node:crypto";
 import { getAiProvider } from "../ai/index.js";
 import {
   appendMessage,
@@ -73,9 +74,43 @@ export interface SendMessageResult {
   assistantMessage: ConversationMessage;
 }
 
+const pendingReplies = new Map<
+  string,
+  { key: string | undefined; content: string; work: Promise<SendMessageResult> }
+>();
+
 export async function sendConversationMessage(
   conversationId: string,
   content: string,
+  clientMsgId?: string,
+): Promise<SendMessageResult> {
+  const pending = pendingReplies.get(conversationId);
+  if (pending) {
+    if (
+      clientMsgId &&
+      pending.key === clientMsgId &&
+      pending.content === content
+    )
+      return pending.work;
+    throw new AppError(
+      409,
+      "A reply is already being generated. Please retry shortly.",
+      "REPLY_PENDING",
+    );
+  }
+  const work = generateConversationReply(conversationId, content, clientMsgId);
+  pendingReplies.set(conversationId, { key: clientMsgId, content, work });
+  try {
+    return await work;
+  } finally {
+    pendingReplies.delete(conversationId);
+  }
+}
+
+async function generateConversationReply(
+  conversationId: string,
+  content: string,
+  clientMsgId?: string,
 ): Promise<SendMessageResult> {
   const conversation = findConversationById(conversationId);
 
@@ -89,14 +124,39 @@ export async function sendConversationMessage(
     throw new NotFoundError("Report not found.");
   }
 
-  const history = listMessagesByConversationId(conversationId)
+  const storedMsgs = listMessagesByConversationId(conversationId);
+  const previousUser = storedMsgs.find((msg) => msg.messageId === clientMsgId);
+  if (
+    previousUser &&
+    (previousUser.role !== "user" || previousUser.content !== content)
+  )
+    throw new AppError(
+      409,
+      "This message ID was already used for different content.",
+    );
+  // Deterministic reply IDs let a retry recover a completed reply after a lost
+  // response or restart. Failed providers can retry without duplicating the user.
+  const hash = clientMsgId
+    ? createHash("sha256")
+        .update(`reply:${conversationId}:${clientMsgId}`)
+        .digest("hex")
+    : null;
+  const assistantId = hash
+    ? `${hash.slice(0, 8)}-${hash.slice(8, 12)}-4${hash.slice(13, 16)}-8${hash.slice(17, 20)}-${hash.slice(20, 32)}`
+    : undefined;
+  const previousReply = storedMsgs.find((msg) => msg.messageId === assistantId);
+  if (previousUser && previousReply)
+    return { userMessage: previousUser, assistantMessage: previousReply };
+  const history = storedMsgs
+    .filter((msg) => msg.messageId !== clientMsgId)
     .slice(-MAX_HISTORY_MESSAGES)
     .map((message) => ({
       role: message.role,
       content: message.content,
     }));
 
-  const userMessage = appendMessage(conversationId, "user", content);
+  const userMessage =
+    previousUser ?? appendMessage(conversationId, "user", content, clientMsgId);
 
   if (!conversation.title) {
     setConversationTitle(conversationId, createTitleFromMessage(content));
@@ -125,7 +185,16 @@ export async function sendConversationMessage(
     );
   }
 
-  const assistantMessage = appendMessage(conversationId, "assistant", reply);
+  if (!findConversationById(conversationId))
+    throw new NotFoundError(
+      "Conversation was deleted while generating a reply.",
+    );
+  const assistantMessage = appendMessage(
+    conversationId,
+    "assistant",
+    reply,
+    assistantId,
+  );
 
   return {
     userMessage,

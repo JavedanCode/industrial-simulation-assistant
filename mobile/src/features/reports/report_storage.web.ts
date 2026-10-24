@@ -1,9 +1,19 @@
 import { buildReport, type ReportSubmissionInput } from "./report_submission";
-import type { SavedReport } from "./report_types";
+import type { SavedReport, ReportSync } from "./report_types";
 import { validateReportTitle } from "./report_management";
 
 // Browser demo only. Picked document URIs and records last for this session.
 const reports: SavedReport[] = [];
+export async function saveReportSync(
+  id: string,
+  sync: ReportSync,
+  status: SavedReport["status"],
+) {
+  const report = reports.find((item) => item.id === id);
+  if (!report) throw new Error("Report not found.");
+  report.sync = sync;
+  report.status = status;
+}
 export async function renameReport(id: string, value: string): Promise<string> {
   const title = validateReportTitle(value);
   const report = reports.find((item) => item.id === id);

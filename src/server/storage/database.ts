@@ -39,6 +39,12 @@ const SCHEMA = `
 
   CREATE INDEX IF NOT EXISTS idx_messages_conversation_id
     ON messages (conversation_id, created_at);
+
+  CREATE TABLE IF NOT EXISTS api_receipts (
+    scope TEXT NOT NULL, key TEXT NOT NULL, fingerprint TEXT NOT NULL,
+    report_id TEXT NOT NULL REFERENCES reports(id) ON DELETE CASCADE,
+    response TEXT NOT NULL, PRIMARY KEY(scope, key)
+  );
 `;
 
 export function getDatabase(): DatabaseSync {
@@ -93,6 +99,7 @@ export function resetDatabaseForTests(): void {
   const db = getDatabase();
 
   db.exec(`
+    DROP TABLE IF EXISTS api_receipts;
     DROP TABLE IF EXISTS messages;
     DROP TABLE IF EXISTS conversations;
     DROP TABLE IF EXISTS reports;

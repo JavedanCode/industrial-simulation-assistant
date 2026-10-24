@@ -63,6 +63,9 @@ test("chat round-trip, ordered saves, interrupted retry, and rollback", async ()
       replyStatus: "idle",
       failedMsg: null,
       pendingMsgId: null,
+      archivedMsgs: [
+        { ...msg, id: "old-local-msg", content: "Earlier local conversation" },
+      ],
     };
     await handle.storage.saveConversation("A", base);
     await Promise.all([
@@ -99,6 +102,10 @@ test("chat round-trip, ordered saves, interrupted retry, and rollback", async ()
     assert.equal(loaded.A.pendingMsgId, msg.id);
     assert.equal(loaded.A.msgs[0].content, msg.content);
     assert.equal(loaded.A.draft, "unsent");
+    assert.equal(
+      loaded.A.archivedMsgs[0].content,
+      "Earlier local conversation",
+    );
     const reply = {
       ...msg,
       id: "reply-1",
