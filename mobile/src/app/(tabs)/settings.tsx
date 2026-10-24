@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 
-export default function SimulationsScreen() {
+export default function settingsScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.content} edges={["top", "left", "right"]}>
