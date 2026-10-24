@@ -2,20 +2,12 @@ import * as DocumentPicker from "expo-document-picker";
 import { Platform } from "react-native";
 
 const Doc_Types = [
-  "application/pdf",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "text/plain",
-  "text/markdown",
-  "text/csv",
-  "application/rtf",
-  "text/rtf",
   "application/vnd.ms-excel",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "application/vnd.ms-excel.sheet.macroEnabled.12",
 ];
 
-const Doc_Extension = /\.(pdf|docx?|txt|md|csv|rtf|xls|xlsx|xlsm)$/i;
+const Doc_Extension = /\.(xls|xlsx|xlsm)$/i;
 
 export async function pickDoc() {
   const result = await DocumentPicker.getDocumentAsync({

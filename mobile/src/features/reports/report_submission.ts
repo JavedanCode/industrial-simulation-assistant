@@ -14,7 +14,7 @@ export function buildReport(
     input.source !== "document" ||
     !input.document ||
     !input.document.uri ||
-    !/\.(pdf|docx?|txt|md|csv|rtf|xls|xlsx|xlsm)$/i.test(input.document.name)
+    !/\.(xls|xlsx|xlsm)$/i.test(input.document.name)
   ) {
     throw new Error("Select a supported document first.");
   }
