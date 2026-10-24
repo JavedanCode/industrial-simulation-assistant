@@ -125,3 +125,15 @@ export function saveConversation(
     });
   });
 }
+
+export function deleteConversation(reportId: string): Promise<void> {
+  // Use the same queue as saving: an older queued save must finish before deletion.
+  return enqueue(async () => {
+    const db = await initChatDb();
+    // Foreign-key cascading deletes this conversation's msgs as well.
+    await db.runAsync(
+      "DELETE FROM chat_conversations WHERE report_id = ?",
+      reportId,
+    );
+  });
+}

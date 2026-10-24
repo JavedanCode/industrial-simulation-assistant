@@ -11,7 +11,11 @@ import {
 import { demoMessagesByReport as demoMsgsByReport } from "../demo-msgs";
 import type { chatMsg, Conversations, ReportConversation } from "./chat_types";
 import { getDemoReply } from "./demo_chat_service";
-import { loadConversations, saveConversation } from "./chat_storage";
+import {
+  loadConversations,
+  saveConversation,
+  deleteConversation as deleteStoredConversation,
+} from "./chat_storage";
 
 export const MAX_MSG_LENGTH = 10_000;
 
@@ -25,6 +29,7 @@ type ReportChatValue = {
   setDraft: (reportId: string, text: string) => void;
   sendMsg: (reportId: string) => boolean;
   retryMsg: (reportId: string) => void;
+  deleteConversation: (reportId: string) => Promise<void>;
 };
 
 const ReportChatContext = createContext<ReportChatValue | null>(null);
@@ -53,6 +58,7 @@ export function ReportChatProvider({ children }: { children: ReactNode }) {
   >({});
   const timersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const activeRef = useRef(true);
+  const deletingRef = useRef(new Set<string>());
 
   useEffect(() => {
     let cancelled = false;
@@ -79,6 +85,7 @@ export function ReportChatProvider({ children }: { children: ReactNode }) {
   }
 
   function persist(reportId: string, snapshot: ReportConversation) {
+    if (deletingRef.current.has(reportId)) return Promise.resolve();
     return saveConversation(reportId, snapshot)
       .then(() => {
         if (
@@ -89,14 +96,18 @@ export function ReportChatProvider({ children }: { children: ReactNode }) {
         }
       })
       .catch(() => {
-        if (activeRef.current)
+        if (
+          activeRef.current &&
+          conversationsRef.current[reportId] === snapshot
+        )
           setSaveErrors((previous) => ({ ...previous, [reportId]: true }));
       });
   }
 
   function retrySave(reportId: string) {
     const snapshot = conversationsRef.current[reportId];
-    if (!readyRef.current || !snapshot) return;
+    if (!readyRef.current || !snapshot || deletingRef.current.has(reportId))
+      return;
     clearTimeout(timersRef.current.get(reportId));
     timersRef.current.delete(reportId);
     void persist(reportId, snapshot);
@@ -151,7 +162,7 @@ export function ReportChatProvider({ children }: { children: ReactNode }) {
     update: Partial<ReportConversation>,
     debounce = false,
   ) {
-    if (!readyRef.current) return;
+    if (!readyRef.current || deletingRef.current.has(reportId)) return;
     const current =
       conversationsRef.current[reportId] ?? initialConversation(reportId);
     const snapshot = { ...current, ...update };
@@ -181,7 +192,8 @@ export function ReportChatProvider({ children }: { children: ReactNode }) {
   }
 
   async function requestReply(reportId: string, msg: chatMsg, retry = false) {
-    if (requestsRef.current.has(reportId)) return;
+    if (requestsRef.current.has(reportId) || deletingRef.current.has(reportId))
+      return;
     const controller = new AbortController();
     requestsRef.current.set(reportId, controller);
     updateConversation(reportId, {
@@ -222,7 +234,7 @@ export function ReportChatProvider({ children }: { children: ReactNode }) {
   }
 
   function sendMsg(reportId: string) {
-    if (!readyRef.current) return false;
+    if (!readyRef.current || deletingRef.current.has(reportId)) return false;
     const current =
       conversationsRef.current[reportId] ?? initialConversation(reportId);
     if (requestsRef.current.has(reportId) || current.replyStatus !== "idle")
@@ -272,6 +284,57 @@ export function ReportChatProvider({ children }: { children: ReactNode }) {
     return conversations[reportId] ?? initialConversation(reportId);
   }
 
+  async function deleteConversation(reportId: string) {
+    if (!readyRef.current)
+      throw new Error(
+        "Chat storage is not ready. Please retry after it loads.",
+      );
+    if (deletingRef.current.has(reportId))
+      throw new Error("This chat is already being deleted.");
+    deletingRef.current.add(reportId);
+    // Cancel producers first: neither a delayed draft save nor a late AI reply
+    // should recreate a chat after the user deletes it.
+    requestsRef.current.get(reportId)?.abort();
+    requestsRef.current.delete(reportId);
+    clearTimeout(timersRef.current.get(reportId));
+    timersRef.current.delete(reportId);
+    try {
+      await deleteStoredConversation(reportId);
+      const next = { ...conversationsRef.current };
+      delete next[reportId];
+      conversationsRef.current = next;
+      setConversations(next);
+      setSaveErrors((previous) => {
+        const nextErrors = { ...previous };
+        delete nextErrors[reportId];
+        return nextErrors;
+      });
+    } catch (error) {
+      // If storage fails, preserve the chat and turn the cancelled request into
+      // a retryable failure instead of leaving an endless loading indicator.
+      deletingRef.current.delete(reportId);
+      const current = conversationsRef.current[reportId];
+      if (current) {
+        const pending = current.msgs.find(
+          (msg) => msg.id === current.pendingMsgId,
+        );
+        updateConversation(
+          reportId,
+          pending
+            ? {
+                replyStatus: "failed",
+                failedMsg: pending,
+                pendingMsgId: null,
+              }
+            : {},
+        );
+      }
+      throw error;
+    } finally {
+      deletingRef.current.delete(reportId);
+    }
+  }
+
   return (
     <ReportChatContext.Provider
       value={{
@@ -283,6 +346,7 @@ export function ReportChatProvider({ children }: { children: ReactNode }) {
         saveErrors,
         retryLoad,
         retrySave,
+        deleteConversation,
       }}
     >
       {children}

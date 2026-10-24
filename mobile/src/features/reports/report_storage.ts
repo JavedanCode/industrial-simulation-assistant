@@ -2,6 +2,7 @@ import { openDatabaseAsync, type SQLiteDatabase } from "expo-sqlite";
 import { Directory, File, Paths } from "expo-file-system";
 import { buildReport, type ReportSubmissionInput } from "./report_submission";
 import type { SavedReport } from "./report_types";
+import { validateReportTitle } from "./report_management";
 
 let dbPromise: Promise<SQLiteDatabase> | undefined;
 function initReportsDb() {
@@ -33,6 +34,44 @@ export async function loadReports(): Promise<SavedReport[]> {
   return db.getAllAsync<SavedReport>(
     "SELECT * FROM reports ORDER BY createdAt DESC, id DESC",
   );
+}
+
+export async function renameReport(id: string, value: string): Promise<string> {
+  const title = validateReportTitle(value);
+  const db = await initReportsDb();
+  // Parameters keep quotes in a user's title separate from SQL commands.
+  const result = await db.runAsync(
+    "UPDATE reports SET title = ? WHERE id = ?",
+    title,
+    id,
+  );
+  if (!result.changes) throw new Error("Report not found.");
+  return title;
+}
+
+export async function deleteReport(id: string): Promise<void> {
+  const db = await initReportsDb();
+  const report = await db.getFirstAsync<SavedReport>(
+    "SELECT * FROM reports WHERE id = ?",
+    id,
+  );
+  if (!report) return; // Repeating a completed deletion is safe.
+  if (report.documentPath) {
+    // Only remove the app-owned copy for this ID, never the original picked file.
+    const fileName = report.documentPath.slice("reports/".length);
+    if (
+      !report.documentPath.startsWith("reports/") ||
+      !/^[a-f0-9-]{36}\.[a-z0-9]+$/i.test(fileName) ||
+      !fileName.startsWith(`${id}.`)
+    ) {
+      throw new Error("The saved document path is invalid.");
+    }
+    const file = new File(Paths.document, report.documentPath);
+    if (file.exists) file.delete();
+  }
+  // Keep the row until file cleanup succeeds. A failed final delete can be retried
+  // even if the file is already gone; files and SQLite cannot share a transaction.
+  await db.runAsync("DELETE FROM reports WHERE id = ?", id);
 }
 
 export async function saveReport(

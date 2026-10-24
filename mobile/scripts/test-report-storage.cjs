@@ -28,6 +28,10 @@ test("saved text/documents survive reopen; failed insert cleans up its copy", as
   const sourcePath = path.join(root, "picked.xlsm");
   let raw = new DatabaseSync(dbPath);
   let failInsert = false;
+  let failFileDelete = false;
+  const management = loadModule("report_management", () => {
+    throw Error("Unexpected import");
+  });
   const builder = loadModule("report_submission", () => {
     throw Error("Unexpected import");
   });
@@ -47,6 +51,7 @@ test("saved text/documents survive reopen; failed insert cleans up its copy", as
       fs.copyFileSync(this.uri, destination.uri, fs.constants.COPYFILE_EXCL);
     }
     delete() {
+      if (failFileDelete) throw Error("Simulated file deletion failure");
       fs.unlinkSync(this.uri);
     }
   }
@@ -58,6 +63,7 @@ test("saved text/documents survive reopen; failed insert cleans up its copy", as
   function storage() {
     return loadModule("report_storage", (name) => {
       if (name === "./report_submission") return builder;
+      if (name === "./report_management") return management;
       if (name === "expo-file-system")
         return { File, Directory, Paths: { document: root } };
       if (name === "expo-sqlite")
@@ -69,6 +75,8 @@ test("saved text/documents survive reopen; failed insert cleans up its copy", as
               return raw.prepare(sql).run(...params);
             },
             getAllAsync: async (sql) => raw.prepare(sql).all(),
+            getFirstAsync: async (sql, ...params) =>
+              raw.prepare(sql).get(...params) ?? null,
             closeAsync: async () => raw.close(),
           }),
         };
@@ -80,11 +88,19 @@ test("saved text/documents survive reopen; failed insert cleans up its copy", as
     assert.equal((await store.loadReports()).length, 0);
     // Seed an existing text report to verify backwards-compatible reads.
     const text = { id: randomUUID(), content: "Output 'A': 42 مرحبا" };
-    raw.prepare(
-      `INSERT INTO reports (id,title,createdAt,source,status,content)
+    raw
+      .prepare(
+        `INSERT INTO reports (id,title,createdAt,source,status,content)
        VALUES (?,?,?,?,?,?)`,
-    ).run(text.id, "Legacy report", new Date().toISOString(), "text",
-      "awaiting_backend", text.content);
+      )
+      .run(
+        text.id,
+        "Legacy report",
+        new Date().toISOString(),
+        "text",
+        "awaiting_backend",
+        text.content,
+      );
     await assert.rejects(
       store.saveReport(randomUUID(), {
         source: "text",
@@ -102,6 +118,39 @@ test("saved text/documents survive reopen; failed insert cleans up its copy", as
       },
     };
     const doc = await store.saveReport(randomUUID(), input);
+    await assert.rejects(
+      store.renameReport(doc.id, "   "),
+      /Enter a report name/,
+    );
+    await assert.rejects(store.renameReport(doc.id, "x".repeat(121)), /120/);
+    assert.equal(
+      await store.renameReport(doc.id, "  Today's report مرحبا  "),
+      "Today's report مرحبا",
+    );
+    const renamed = (await store.loadReports()).find(
+      (item) => item.id === doc.id,
+    );
+    assert.equal(renamed.title, "Today's report مرحبا");
+    assert.equal(renamed.documentName, "example.xlsm");
+    assert.equal(renamed.documentPath, doc.documentPath);
+    // Corrupt paths must never let deletion escape the app-owned report copy.
+    raw
+      .prepare("UPDATE reports SET documentPath = ? WHERE id = ?")
+      .run("../picked.xlsm", doc.id);
+    await assert.rejects(store.deleteReport(doc.id), /path is invalid/);
+    assert.equal(fs.existsSync(sourcePath), true);
+    raw
+      .prepare("UPDATE reports SET documentPath = ? WHERE id = ?")
+      .run(doc.documentPath, doc.id);
+    // A failed file deletion keeps the report available for an explicit retry.
+    failFileDelete = true;
+    await assert.rejects(
+      store.deleteReport(doc.id),
+      /Simulated file deletion failure/,
+    );
+    assert.equal((await store.loadReports()).length, 2);
+    assert.equal(fs.existsSync(path.join(root, doc.documentPath)), true);
+    failFileDelete = false;
     assert.equal(path.isAbsolute(doc.documentPath), false);
     assert.equal(
       fs.readFileSync(path.join(root, doc.documentPath), "utf8"),
@@ -126,12 +175,15 @@ test("saved text/documents survive reopen; failed insert cleans up its copy", as
       }),
     );
     assert.equal((await store.loadReports()).length, 2);
-    fs.unlinkSync(sourcePath);
     raw.close();
     raw = new DatabaseSync(dbPath);
     store = storage();
     const saved = await store.loadReports();
     assert.equal(saved.length, 2);
+    assert.equal(
+      saved.find((item) => item.id === doc.id).title,
+      "Today's report مرحبا",
+    );
     assert.equal(
       saved.find((item) => item.id === text.id).content,
       text.content,
@@ -142,6 +194,22 @@ test("saved text/documents survive reopen; failed insert cleans up its copy", as
       ),
       true,
     );
+    // Only the app's copy is removed, never the user's picked original.
+    // Simulate SQLite failing after the copy has already been removed.
+    failInsert = true;
+    await assert.rejects(store.deleteReport(doc.id), /Simulated write failure/);
+    assert.equal(fs.existsSync(path.join(root, doc.documentPath)), false);
+    assert.equal((await store.loadReports()).length, 2);
+    failInsert = false;
+    await store.deleteReport(doc.id);
+    await store.deleteReport(doc.id);
+    assert.equal(fs.existsSync(sourcePath), true);
+    assert.equal((await store.loadReports()).length, 1);
+    await store.deleteReport(text.id);
+    raw.close();
+    raw = new DatabaseSync(dbPath);
+    store = storage();
+    assert.equal((await store.loadReports()).length, 0);
   } finally {
     raw.close();
     const docs = path.join(root, "reports");
@@ -154,4 +222,35 @@ test("saved text/documents survive reopen; failed insert cleans up its copy", as
       fs.unlinkSync(path.join(root, name));
     fs.rmdirSync(root);
   }
+});
+
+test("browser rename/delete updates only the selected session record", async () => {
+  const management = loadModule("report_management", () => {
+    throw Error("Unexpected import");
+  });
+  const builder = loadModule("report_submission", () => {
+    throw Error("Unexpected import");
+  });
+  const store = loadModule("report_storage.web", (name) => {
+    if (name === "./report_management") return management;
+    if (name === "./report_submission") return builder;
+    throw Error(name);
+  });
+  const input = {
+    source: "document",
+    document: { name: "report.xlsx", uri: "blob:demo" },
+  };
+  await store.saveReport("A", input);
+  await store.saveReport("B", input);
+  await assert.rejects(store.renameReport("A", " "));
+  await store.renameReport("A", " Renamed ");
+  const report = (await store.loadReports()).find((item) => item.id === "A");
+  assert.equal(report.title, "Renamed");
+  assert.equal(report.documentName, "report.xlsx");
+  await store.deleteReport("A");
+  await store.deleteReport("A");
+  assert.equal(
+    (await store.loadReports()).map((item) => item.id).join(","),
+    "B",
+  );
 });

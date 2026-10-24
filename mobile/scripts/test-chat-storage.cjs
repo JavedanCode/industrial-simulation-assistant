@@ -114,6 +114,24 @@ test("chat round-trip, ordered saves, interrupted retry, and rollback", async ()
     assert.equal(loaded.A.replyStatus, "idle");
     assert.equal(loaded.A.pendingMsgId, null);
     assert.equal(loaded.B.draft, "separate");
+    // Delete waits behind an already queued save and cascades to its msgs.
+    await Promise.all([
+      handle.storage.saveConversation("A", {
+        ...base,
+        draft: "queued before delete",
+      }),
+      handle.storage.deleteConversation("A"),
+    ]);
+    await handle.storage.deleteConversation("A");
+    handle.close();
+    handle = openStorage(filename);
+    loaded = await handle.storage.loadConversations();
+    assert.equal(loaded.A, undefined);
+    assert.equal(loaded.B.draft, "separate");
+    // Reusing a deleted msg ID in another chat proves the old msg was removed.
+    await handle.storage.saveConversation("B", base);
+    loaded = await handle.storage.loadConversations();
+    assert.equal(loaded.B.msgs[0].id, msg.id);
   } finally {
     handle.close();
     fs.rmSync(filename, { force: true });

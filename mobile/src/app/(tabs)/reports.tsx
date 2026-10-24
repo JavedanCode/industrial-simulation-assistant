@@ -7,6 +7,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
+import { useState } from "react";
+import { ReportActions } from "@/features/reports/report_actions";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
@@ -25,6 +27,8 @@ function formatReportDate(value: string) {
 
 export default function ReportsScreen() {
   const { reports, status, retryLoad } = useReports();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selectedReport = reports.find((report) => report.id === selectedId);
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
@@ -45,33 +49,47 @@ export default function ReportsScreen() {
             </ThemedView>
           }
           renderItem={({ item }) => (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Open ${item.title}`}
-              onPress={() =>
-                router.push({
-                  pathname: "/report/[id]",
-                  params: { id: item.id },
-                })
-              }
-              style={({ pressed }) => [pressed && styles.pressed]}
-            >
-              <ThemedView type="backgroundElement" style={styles.reportCard}>
-                <ThemedText type="smallBold">{item.title}</ThemedText>
+            <ThemedView type="backgroundElement" style={styles.cardRow}>
+              {/* Sibling buttons prevent tapping the menu from opening the chat. */}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Open ${item.title}`}
+                onPress={() =>
+                  router.push({
+                    pathname: "/report/[id]",
+                    params: { id: item.id },
+                  })
+                }
+                style={({ pressed }) => [
+                  styles.openReport,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <ThemedView type="backgroundElement" style={styles.reportCard}>
+                  <ThemedText type="smallBold">{item.title}</ThemedText>
 
-                <ThemedText type="small" themeColor="textSecondary">
-                  {formatReportDate(item.createdAt)}
-                </ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {formatReportDate(item.createdAt)}
+                  </ThemedText>
 
-                <ThemedText type="small" themeColor="textSecondary">
-                  {item.source === "document" ? "Document" : "Pasted text"}
-                </ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {item.source === "document" ? "Document" : "Pasted text"}
+                  </ThemedText>
 
-                <ThemedText type="smallBold">
-                  {reportStatusLabels[item.status]}
-                </ThemedText>
-              </ThemedView>
-            </Pressable>
+                  <ThemedText type="smallBold">
+                    {reportStatusLabels[item.status]}
+                  </ThemedText>
+                </ThemedView>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Options for ${item.title}`}
+                onPress={() => setSelectedId(item.id)}
+                style={styles.menuButton}
+              >
+                <ThemedText style={styles.menuIcon}>⋮</ThemedText>
+              </Pressable>
+            </ThemedView>
           )}
           ListEmptyComponent={
             <ThemedView style={styles.emptyState}>
@@ -101,6 +119,13 @@ export default function ReportsScreen() {
             </ThemedView>
           }
         />
+        {selectedReport && (
+          <ReportActions
+            key={selectedReport.id}
+            report={selectedReport}
+            onClose={() => setSelectedId(null)}
+          />
+        )}
       </SafeAreaView>
     </ThemedView>
   );
@@ -126,8 +151,16 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 12,
     gap: 8,
-    marginBottom: 12,
   },
+  cardRow: { flexDirection: "row", borderRadius: 12, marginBottom: 12 },
+  openReport: { flex: 1, minWidth: 0 },
+  menuButton: {
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  menuIcon: { fontSize: 28 },
   emptyState: {
     gap: 8,
   },
