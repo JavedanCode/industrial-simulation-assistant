@@ -4,6 +4,7 @@ import {
   Pressable,
   ActivityIndicator,
   Platform,
+  TextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -15,6 +16,7 @@ import { ThemedView } from "@/components/themed-view";
 import { BottomTabInset, MaxContentWidth } from "@/constants/theme";
 import { useReports } from "@/features/reports/reports_context";
 import { reportStatusLabels } from "@/features/reports/report_types";
+import { useTheme } from "@/hooks/use-theme";
 
 //Format date using the device's Locale, with a short month name
 function formatReportDate(value: string) {
@@ -27,6 +29,14 @@ function formatReportDate(value: string) {
 
 export default function ReportsScreen() {
   const { reports, status, retryLoad } = useReports();
+  const theme = useTheme();
+  const [search, setSearch] = useState("");
+  // Derive results from saved reports so renaming/deleting updates the search
+  // immediately. Trimming and lowercasing allow forgiving partial-name matches.
+  const query = search.trim().toLowerCase();
+  const filteredReports = reports.filter((report) =>
+    report.title.toLowerCase().includes(query),
+  );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selectedReport = reports.find((report) => report.id === selectedId);
   return (
@@ -35,7 +45,9 @@ export default function ReportsScreen() {
         <FlatList
           style={styles.container}
           contentContainerStyle={styles.content}
-          data={reports}
+          data={filteredReports}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           keyExtractor={(item) => item.id}
           ListHeaderComponent={
             <ThemedView style={styles.header}>
@@ -46,6 +58,45 @@ export default function ReportsScreen() {
                   ? "Browser demo: reports reset on refresh."
                   : "Reports saved on this device."}
               </ThemedText>
+              <ThemedView style={styles.searchRow}>
+                <TextInput
+                  accessibilityLabel="Search reports by name"
+                  placeholder="Search reports by name…"
+                  placeholderTextColor={theme.textSecondary}
+                  value={search}
+                  onChangeText={setSearch}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="search"
+                  style={[
+                    styles.searchInput,
+                    {
+                      color: theme.text,
+                      borderColor: theme.textSecondary,
+                    },
+                  ]}
+                />
+                {search.length > 0 && (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Clear search"
+                    onPress={() => setSearch("")}
+                    style={styles.clearSearch}
+                  >
+                    <ThemedText>Clear</ThemedText>
+                  </Pressable>
+                )}
+              </ThemedView>
+              {query !== "" && status === "ready" && (
+                <ThemedText
+                  type="small"
+                  themeColor="textSecondary"
+                  accessibilityLiveRegion="polite"
+                >
+                  {filteredReports.length}{" "}
+                  {filteredReports.length === 1 ? "report" : "reports"} found
+                </ThemedText>
+              )}
             </ThemedView>
           }
           renderItem={({ item }) => (
@@ -99,7 +150,9 @@ export default function ReportsScreen() {
                   ? "Loading reports…"
                   : status === "failed"
                     ? "Couldn’t load saved reports."
-                    : "No reports yet."}
+                    : reports.length > 0
+                      ? "No matching reports."
+                      : "No reports yet."}
               </ThemedText>
               {status === "failed" && (
                 <Pressable
@@ -113,7 +166,9 @@ export default function ReportsScreen() {
 
               <ThemedText themeColor="textSecondary">
                 {status === "ready"
-                  ? "Save a report from Home to see it here."
+                  ? reports.length > 0
+                    ? "Try a different name or clear your search."
+                    : "Save a report from Home to see it here."
                   : ""}
               </ThemedText>
             </ThemedView>
@@ -146,6 +201,22 @@ const styles = StyleSheet.create({
   header: {
     gap: 8,
     marginBottom: 24,
+  },
+  searchRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  searchInput: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 48,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 16,
+  },
+  clearSearch: {
+    minWidth: 48,
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
   },
   reportCard: {
     padding: 20,
