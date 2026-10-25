@@ -1,5 +1,6 @@
+import type { AnalysisPresentation } from "@/api/contracts";
 import { SymbolView } from "expo-symbols";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState, type RefObject } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -61,10 +62,9 @@ export function ReportChat({ reportId }: ReportChatProps) {
     failedMsg,
     pendingMsgId,
   } = getConversation(reportId);
-  const [showArchive, setShowArchive] = useState(false);
   const [inputHeight, setInputHeight] = useState(MIN_INPUT_HEIGHT);
   const listRef = useRef<FlatList<chatMsg>>(null);
-  const scrollAfterSend = useRef(false);
+  const scrollAfterSendRef = useRef(false);
   const canSend =
     !refreshing[reportId] &&
     !!report?.sync?.conversationId &&
@@ -74,7 +74,7 @@ export function ReportChat({ reportId }: ReportChatProps) {
 
   function handleSend() {
     if (sendMsg(reportId)) {
-      scrollAfterSend.current = true;
+      scrollAfterSendRef.current = true;
       setInputHeight(MIN_INPUT_HEIGHT);
     }
   }
@@ -111,59 +111,12 @@ export function ReportChat({ reportId }: ReportChatProps) {
 
   return (
     <ThemedView style={styles.container}>
-      <FlatList
-        ref={listRef}
-        style={styles.container}
-        contentContainerStyle={styles.messages}
-        data={msgs}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <MsgBubble message={item} />}
-        ListHeaderComponent={
-          <ThemedView>
-            {report?.sync?.analysis && (
-              <AnalysisSummary analysis={report.sync.analysis} />
-            )}
-            {!!archivedMsgs?.length && (
-              <>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityState={{ expanded: showArchive }}
-                  onPress={() => setShowArchive((value) => !value)}
-                  style={styles.retryButton}
-                >
-                  <ThemedText type="small">
-                    {showArchive ? "Hide" : "Show"} earlier local messages (
-                    {archivedMsgs.length})
-                  </ThemedText>
-                </Pressable>
-                {showArchive && (
-                  <ThemedView style={{ gap: 16, paddingVertical: 16 }}>
-                    <ThemedText themeColor="textSecondary">
-                      Earlier local/demo messages. These are not part of the
-                      backend conversation.
-                    </ThemedText>
-                    {archivedMsgs.map((msg) => (
-                      <MsgBubble key={msg.id} message={msg} />
-                    ))}
-                  </ThemedView>
-                )}
-              </>
-            )}
-          </ThemedView>
-        }
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
-        onContentSizeChange={() => {
-          if (scrollAfterSend.current) {
-            scrollAfterSend.current = false;
-            listRef.current?.scrollToEnd({ animated: true });
-          }
-        }}
-        ListEmptyComponent={
-          <ThemedText themeColor="textSecondary">
-            Ask a question about the analysis above.
-          </ThemedText>
-        }
+      <ChatMsgList
+        msgs={msgs}
+        archivedMsgs={archivedMsgs}
+        analysis={report?.sync?.analysis}
+        listRef={listRef}
+        scrollAfterSendRef={scrollAfterSendRef}
       />
 
       <ThemedView style={styles.composer}>
@@ -330,6 +283,82 @@ export function ReportChat({ reportId }: ReportChatProps) {
     </ThemedView>
   );
 }
+
+// Drafts remain in the provider for persistence. This boundary keeps draft and
+// input-height updates from rendering the list or the large analysis header.
+const ChatMsgList = memo(function ChatMsgList({
+  msgs,
+  archivedMsgs,
+  analysis,
+  listRef,
+  scrollAfterSendRef,
+}: {
+  msgs: chatMsg[];
+  archivedMsgs?: chatMsg[];
+  analysis?: AnalysisPresentation | null;
+  listRef: RefObject<FlatList<chatMsg> | null>;
+  scrollAfterSendRef: RefObject<boolean>;
+}) {
+  const [showArchive, setShowArchive] = useState(false);
+  return (
+    <FlatList
+      ref={listRef}
+      style={styles.container}
+      contentContainerStyle={styles.messages}
+      data={msgs}
+      keyExtractor={msgKey}
+      renderItem={renderMsg}
+      ListHeaderComponent={
+        <ThemedView>
+          {analysis && <AnalysisSummary analysis={analysis} />}
+          {!!archivedMsgs?.length && (
+            <>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ expanded: showArchive }}
+                onPress={() => setShowArchive((value) => !value)}
+                style={styles.retryButton}
+              >
+                <ThemedText type="small">
+                  {showArchive ? "Hide" : "Show"} earlier local messages (
+                  {archivedMsgs.length})
+                </ThemedText>
+              </Pressable>
+              {showArchive && (
+                <ThemedView style={{ gap: 16, paddingVertical: 16 }}>
+                  <ThemedText themeColor="textSecondary">
+                    Earlier local/demo messages. These are not part of the
+                    backend conversation.
+                  </ThemedText>
+                  {archivedMsgs.map((msg) => (
+                    <MsgBubble key={msg.id} message={msg} />
+                  ))}
+                </ThemedView>
+              )}
+            </>
+          )}
+        </ThemedView>
+      }
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+      onContentSizeChange={() => {
+        if (scrollAfterSendRef.current) {
+          scrollAfterSendRef.current = false;
+          listRef.current?.scrollToEnd({ animated: true });
+        }
+      }}
+      ListEmptyComponent={
+        <ThemedText themeColor="textSecondary">
+          Ask a question about the analysis above.
+        </ThemedText>
+      }
+    />
+  );
+});
+
+// These functions never capture changing composer state.
+const msgKey = (msg: chatMsg) => msg.id;
+const renderMsg = ({ item }: { item: chatMsg }) => <MsgBubble message={item} />;
 
 const styles = StyleSheet.create({
   storageState: {

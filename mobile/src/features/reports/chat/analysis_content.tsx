@@ -1,3 +1,4 @@
+import { memo, useMemo } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { ThemedText } from "@/components/themed-text";
 import { useTheme } from "@/hooks/use-theme";
@@ -20,11 +21,17 @@ function InlineText({ text }: { text: string }) {
   );
 }
 
-export function AnalysisContent({ content }: { content: string }) {
+export const AnalysisContent = memo(function AnalysisContent({
+  content,
+}: {
+  content: string;
+}) {
   const theme = useTheme();
+  // Theme changes can repaint the content without parsing the same text again.
+  const blocks = useMemo(() => parseAnalysis(content), [content]);
   return (
     <View style={styles.content}>
-      {parseAnalysis(content).map((block, index) => {
+      {blocks.map((block, index) => {
         if (block.type === "table")
           return (
             <View key={index} style={styles.content}>
@@ -95,7 +102,7 @@ export function AnalysisContent({ content }: { content: string }) {
       })}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   content: { gap: 10 },

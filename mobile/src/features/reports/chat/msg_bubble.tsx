@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet } from "react-native";
-import { useState } from "react";
+import { memo, useState } from "react";
 import * as Clipboard from "expo-clipboard";
 import { AnalysisContent } from "./analysis_content";
 
@@ -11,7 +11,8 @@ type MsgBubbleProps = {
   message: chatMsg;
 };
 
-export function MsgBubble({ message }: MsgBubbleProps) {
+// Existing message objects stay stable when a new message is appended.
+export const MsgBubble = memo(function MsgBubble({ message }: MsgBubbleProps) {
   const isUser = message.role === "user";
   const [copyStatus, setCopyStatus] = useState("");
   async function copyMsg() {
@@ -60,7 +61,7 @@ export function MsgBubble({ message }: MsgBubbleProps) {
       )}
     </ThemedView>
   );
-}
+});
 
 const styles = StyleSheet.create({
   copyButton: {
