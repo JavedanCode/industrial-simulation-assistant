@@ -1,6 +1,13 @@
 import type { AnalysisPresentation } from "@/api/contracts";
 import { SymbolView } from "expo-symbols";
-import { memo, useEffect, useRef, useState, type RefObject } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -64,7 +71,7 @@ export function ReportChat({ reportId }: ReportChatProps) {
   } = getConversation(reportId);
   const [inputHeight, setInputHeight] = useState(MIN_INPUT_HEIGHT);
   const listRef = useRef<FlatList<chatMsg>>(null);
-  const scrollAfterSendRef = useRef(false);
+  const followLatestRef = useRef(false);
   const canSend =
     !refreshing[reportId] &&
     !!report?.sync?.conversationId &&
@@ -74,7 +81,7 @@ export function ReportChat({ reportId }: ReportChatProps) {
 
   function handleSend() {
     if (sendMsg(reportId)) {
-      scrollAfterSendRef.current = true;
+      followLatestRef.current = true;
       setInputHeight(MIN_INPUT_HEIGHT);
     }
   }
@@ -116,7 +123,7 @@ export function ReportChat({ reportId }: ReportChatProps) {
         archivedMsgs={archivedMsgs}
         analysis={report?.sync?.analysis}
         listRef={listRef}
-        scrollAfterSendRef={scrollAfterSendRef}
+        followLatestRef={followLatestRef}
       />
 
       <ThemedView style={styles.composer}>
@@ -291,15 +298,57 @@ const ChatMsgList = memo(function ChatMsgList({
   archivedMsgs,
   analysis,
   listRef,
-  scrollAfterSendRef,
+  followLatestRef,
 }: {
   msgs: chatMsg[];
   archivedMsgs?: chatMsg[];
   analysis?: AnalysisPresentation | null;
   listRef: RefObject<FlatList<chatMsg> | null>;
-  scrollAfterSendRef: RefObject<boolean>;
+  followLatestRef: RefObject<boolean>;
 }) {
   const [showArchive, setShowArchive] = useState(false);
+  const lastMsgId = msgs.at(-1)?.id;
+  const previousMsgIdRef = useRef(lastMsgId);
+
+  const contentHeightRef = useRef(0);
+  const viewportHeightRef = useRef(0);
+  const scrollFrameRef = useRef<number | null>(null);
+
+  // scrollToEnd estimates unmeasured row heights. Use the actual scroll-content
+  // height instead, and repeat when a long reply finishes laying out.
+  const followLatest = useCallback(() => {
+    if (scrollFrameRef.current !== null) {
+      cancelAnimationFrame(scrollFrameRef.current);
+    }
+    scrollFrameRef.current = requestAnimationFrame(() => {
+      scrollFrameRef.current = null;
+      if (!followLatestRef.current || viewportHeightRef.current === 0) return;
+      listRef.current?.scrollToOffset({
+        offset: Math.max(
+          0,
+          contentHeightRef.current - viewportHeightRef.current,
+        ),
+        animated: false,
+      });
+    });
+  }, [followLatestRef, listRef]);
+
+  useEffect(() => {
+    if (previousMsgIdRef.current === lastMsgId) return;
+    previousMsgIdRef.current = lastMsgId;
+    if (!lastMsgId) return;
+    followLatestRef.current = true;
+    followLatest();
+  }, [lastMsgId, followLatestRef, followLatest]);
+
+  useEffect(
+    () => () => {
+      if (scrollFrameRef.current !== null) {
+        cancelAnimationFrame(scrollFrameRef.current);
+      }
+    },
+    [],
+  );
   return (
     <FlatList
       ref={listRef}
@@ -341,11 +390,18 @@ const ChatMsgList = memo(function ChatMsgList({
       }
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
-      onContentSizeChange={() => {
-        if (scrollAfterSendRef.current) {
-          scrollAfterSendRef.current = false;
-          listRef.current?.scrollToEnd({ animated: true });
-        }
+      onContentSizeChange={(_width, height) => {
+        contentHeightRef.current = height;
+        followLatest();
+      }}
+      onLayout={({ nativeEvent }) => {
+        viewportHeightRef.current = nativeEvent.layout.height;
+        followLatest();
+      }}
+      onScrollBeginDrag={() => {
+        // Only a deliberate gesture stops following. Programmatic scroll-end
+        // events must not turn it off while a reply is still being measured.
+        followLatestRef.current = false;
       }}
       ListEmptyComponent={
         <ThemedText themeColor="textSecondary">
