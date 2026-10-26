@@ -1,19 +1,29 @@
 # Industrial Simulation Assistant
 
-A local backend for analyzing Arena simulation reports and chatting about the
-results. It uploads an Arena `.xlsx`/`.xlsm` report, normalizes the workbook,
-computes deterministic metrics, stores everything in a local SQLite database,
-and exposes a conversation API backed by a replaceable AI provider.
+A local backend plus an Expo mobile app for analyzing Arena simulation reports
+and chatting about the results. The app uploads an Arena `.xlsx`/`.xlsm` report,
+the backend normalizes the workbook, computes deterministic metrics, stores
+everything in a local SQLite database, and exposes a conversation API backed by
+a replaceable AI provider.
 
 The backend is the source of truth. AI answers are grounded in report data and
 computed insights, not in facts memorized by a model.
+
+```text
+mobile/ (Expo, Android/iOS)  ->  backend (Express, Node 24)  ->  AI provider
+                                   |                              |
+                                   +-- SQLite (local)             +-- mock (offline)
+                                                                  +-- ollama (local network)
+                                                                  +-- gemini (cloud)
+```
 
 ## Status
 
 - Report parsing, normalization, storage, and library APIs: complete.
 - Derived resource, queue, entity, throughput, and bottleneck insights: complete.
 - Conversation and message APIs: complete.
-- AI boundary with deterministic `mock` and hosted Gemini Flash providers: complete.
+- AI boundary with `mock`, local `ollama`, and hosted Gemini Flash providers: complete.
+- Expo mobile app (report library, upload, analysis view, grounded chat): complete.
 - Optional fine-tuning: not required for the first working chatbot.
 
 ## Requirements
@@ -21,8 +31,14 @@ computed insights, not in facts memorized by a model.
 - Node.js 24 or newer. The project uses the built-in `node:sqlite` module.
 - npm.
 - No external database or cloud service is required.
+- For chat: either [Ollama](https://ollama.com/download) (local) or a Gemini API
+  key (cloud). `AI_PROVIDER=mock` needs neither.
+- For the phone app: Expo Go on the device, on the same Wi-Fi network as this
+  computer.
 
 ## Quick start
+
+Backend:
 
 ```bash
 npm install
@@ -43,20 +59,37 @@ curl http://localhost:3000/api/health
 
 The SQLite database is created automatically at `data/assistant.db`.
 
+Mobile app (second terminal):
+
+```bash
+cd mobile
+npm install
+cp .env.example .env.local  # then set your computer's LAN IPv4, not localhost
+npx expo start
+```
+
+Scan the QR code with Expo Go. `localhost` on a phone points at the phone, so
+`EXPO_PUBLIC_API_URL` must be `http://<computer-LAN-IP>:3000/api`. See
+[mobile/API_INTEGRATION.md](mobile/API_INTEGRATION.md) for the full phone
+checklist and [docs/API_GUIDE.md](docs/API_GUIDE.md) for the HTTP contract.
+
 ## Configuration
 
 Copy `.env.example` to `.env` and adjust values as needed.
 
-| Variable           | Default             | Description                                                     |
-| ------------------ | ------------------- | --------------------------------------------------------------- |
-| `PORT`             | `3000`              | HTTP port.                                                      |
-| `DATA_DIR`         | `data`              | Directory used for local storage.                               |
-| `DATABASE_PATH`    | `data/assistant.db` | Explicit SQLite path, or `:memory:` for tests.                  |
-| `AI_PROVIDER`      | `mock`              | `mock` for offline use, or `gemini` for the hosted Flash model. |
-| `GEMINI_API_KEY`   | unset               | Gemini API key. Required only when `AI_PROVIDER=gemini`.        |
-| `GEMINI_MODEL`     | `gemini-3.8-flash`  | Gemini model identifier.                                        |
-| `GEMINI_TIMEOUT_MS`| `30000`             | Request timeout in milliseconds (1000-120000).                  |
-| `CORS_ORIGIN`      | `*`                 | Allowed browser origin.                                         |
+| Variable           | Default             | Description                                                          |
+| ------------------ | ------------------- | -------------------------------------------------------------------- |
+| `PORT`             | `3000`              | HTTP port.                                                           |
+| `DATA_DIR`         | `data`              | Directory used for local storage.                                    |
+| `DATABASE_PATH`    | `data/assistant.db` | Explicit SQLite path, or `:memory:` for tests.                       |
+| `AI_PROVIDER`      | `mock`              | `mock` (offline), `ollama` (local), or `gemini` (cloud).             |
+| `OLLAMA_BASE_URL`  | `http://localhost:11434/v1` | Ollama's OpenAI-compatible endpoint.                         |
+| `OLLAMA_MODEL`     | `qwen2.5:7b-instruct` | Model tag; must already be pulled with `ollama pull`.             |
+| `OLLAMA_TIMEOUT_MS`| `60000`             | Request timeout in milliseconds (1000-300000).                       |
+| `GEMINI_API_KEY`   | unset               | Gemini API key. Required only when `AI_PROVIDER=gemini`.             |
+| `GEMINI_MODEL`     | `gemini-3.8-flash`  | Gemini model identifier.                                             |
+| `GEMINI_TIMEOUT_MS`| `30000`             | Request timeout in milliseconds (1000-120000).                       |
+| `CORS_ORIGIN`      | `*`                 | Allowed browser origin.                                              |
 
 Relative paths are resolved from the project root. The database stays on the
 machine where the backend runs.
@@ -248,13 +281,17 @@ These remain for compatibility but should not be used by new clients:
 src/
   models/                     Domain and normalized-report types
   server/
-    ai/                       AiProvider boundary, prompt grounding, mock + Gemini
+    ai/                       AiProvider boundary, prompt grounding, mock + Ollama + Gemini
     controllers/              HTTP request/response handling
     http/                     AppError and validation helpers
     middleware/               CORS, logging, uploads, central error handling
     routes/                   Express route definitions
     services/                 Parsing, normalization, insights, conversations
     storage/                  SQLite schema and repositories
+mobile/
+  src/api/                    Transport, response decoders, API error mapping
+  src/app/                    Expo Router screens
+  src/features/               Report library, upload, analysis, chat, settings
 ```
 
 Report flow:
@@ -282,16 +319,60 @@ interface AiProvider {
 ```
 
 `AiGenerationInput` includes the question, normalized report, semantic summary,
-derived insights, and recent conversation history. Two providers ship with the
+derived insights, and recent conversation history. Three providers ship with the
 project:
 
 - `mock` (the default) works entirely offline and returns deterministic,
   report-grounded text. It is used by the tests and is useful while setting up.
+- `ollama` calls a model running on this machine (or another machine on the LAN)
+  through Ollama's OpenAI-compatible API. No API key, no cost, no rate limit, and
+  no report data leaves the network.
 - `gemini` calls Gemini Flash's hosted API. It needs a free Google AI Studio API
   key, an internet connection, and `AI_PROVIDER=gemini`.
 
-For a detailed, code-level explanation of how the Gemini request is assembled,
-see [docs/AI_WALKTHROUGH.md](docs/AI_WALKTHROUGH.md).
+All three receive the same grounded prompt from `promptBuilder.ts`, so switching
+providers never changes what the report data says.
+
+For a detailed, code-level explanation of how the prompt and requests are
+assembled, see [docs/AI_WALKTHROUGH.md](docs/AI_WALKTHROUGH.md).
+
+### Enable Ollama (local, recommended for demos)
+
+1. Install Ollama from <https://ollama.com/download>.
+2. Pull a model that follows strict instructions well:
+
+   ```bash
+   ollama pull qwen2.5:3b-instruct   # fast on most laptops
+   # or, better answers but slower:
+   ollama pull qwen2.5:7b-instruct
+   ```
+
+3. Add these values to `.env`:
+
+   ```dotenv
+   AI_PROVIDER=ollama
+   OLLAMA_BASE_URL=http://localhost:11434/v1
+   OLLAMA_MODEL=qwen2.5:3b-instruct
+   OLLAMA_TIMEOUT_MS=120000
+   ```
+
+4. Restart the backend and send a conversation message.
+
+If a request is slow, it is usually the prompt being re-processed with a growing
+conversation. History is capped at the last 8 messages for this reason. A smaller
+model (`3b`) is the biggest single speed win. Chat is non-streaming, so a long
+reply arrives all at once.
+
+To watch requests, quit the tray app and run the server in a terminal:
+
+```powershell
+$env:OLLAMA_DEBUG="1"
+ollama serve
+```
+
+Every chat request then logs model loading, context size, token counts, and
+timings. If the model does not fit in GPU memory, Ollama silently falls back to
+CPU, which is much slower.
 
 ### Enable Gemini Flash
 
@@ -302,7 +383,7 @@ see [docs/AI_WALKTHROUGH.md](docs/AI_WALKTHROUGH.md).
    AI_PROVIDER=gemini
    GEMINI_API_KEY=your-key-here
    GEMINI_MODEL=gemini-3.8-flash
-   GEMINI_TIMEOUT_MS=30000
+   GEMINI_TIMEOUT_MS=90000
    ```
 
 3. Restart the backend and send a conversation message.
@@ -310,12 +391,13 @@ see [docs/AI_WALKTHROUGH.md](docs/AI_WALKTHROUGH.md).
 The free tier's quotas and model availability can change, so check the current
 limits in Google AI Studio. The backend makes one non-streaming request per
 message and does not retry automatically. A `429` response is returned as a
-clear `AI_PROVIDER_RATE_LIMITED` error so you can try again later.
+clear `AI_PROVIDER_RATE_LIMITED` error so you can try again later. Free-tier
+latency can exceed 60 seconds, which is why the example timeout is raised.
 
 If `GEMINI_API_KEY` is missing, the report library and deterministic analysis
 still work; only chat requests fail with `AI_PROVIDER_NOT_CONFIGURED`.
 
-### What gets sent to Gemini
+### What gets sent to the model
 
 The backend remains the source of truth. The prompt contains:
 
@@ -325,17 +407,16 @@ The backend remains the source of truth. The prompt contains:
 - parser warnings;
 - recent conversation history and the current question.
 
-It does not send the original workbook, the complete normalized workbook, the
-absolute path of the model file, or the API key inside the URL. The key is sent
-in the `x-goog-api-key` header. Report fields are explicitly treated as
+It does not send the original workbook, the complete normalized workbook, or the
+absolute path of the model file. Report fields are explicitly treated as
 untrusted data so instruction-like text inside an uploaded workbook cannot
 override the grounding rules.
 
-The workbook and SQLite database remain local, but the compact prompt and chat
-messages are sent to Google when Gemini is enabled. Google's current free tier
-may use content to improve its products. Do not use the free tier for
-confidential reports if that tradeoff is unacceptable; a paid Gemini tier or a
-future local provider would avoid it.
+The workbook and SQLite database remain local. With `ollama`, the prompt and chat
+messages go only to the Ollama process on your machine or LAN. With `gemini`,
+they are sent to Google and the key travels in the `x-goog-api-key` header, never
+in the URL. Google's current free tier may use content to improve its products;
+do not use it for confidential reports if that tradeoff is unacceptable.
 
 The model is allowed to explain general simulation concepts, but it is told not
 to attach report-specific numbers unless they appear in the supplied context.
@@ -354,7 +435,19 @@ Fine-tuning is optional. A free hosted model or a local model with good
 instruction following should be tried first, with the report data and computed
 insights supplied as context.
 
+## Mobile app
+
+`mobile/` is an Expo Router app for Android/iOS. It keeps a local report library
+(SQLite), uploads reports to this backend, displays the deterministic analysis,
+and chats over the conversation API. It never holds AI credentials.
+
+Start it with `npx expo start` from `mobile/` and open it in Expo Go. Set
+`EXPO_PUBLIC_API_URL` in `mobile/.env.local` to this computer's LAN address.
+Full device checklist: [mobile/API_INTEGRATION.md](mobile/API_INTEGRATION.md).
+
 ## Tests
+
+Backend:
 
 ```bash
 npm run typecheck
@@ -362,20 +455,37 @@ npm test
 npm run build
 ```
 
-Tests use an in-memory SQLite database. Integration tests read the Arena files
+Mobile:
+
+```bash
+cd mobile
+npx tsc --noEmit
+npx expo lint
+node --test scripts/test-report-storage.cjs scripts/test-chat-storage.cjs scripts/test-analysis-format.cjs scripts/test-history-reconciliation.cjs scripts/test-native-upload.cjs
+```
+
+Backend tests use an in-memory SQLite database and inject a fake `fetch`, so no
+AI provider or network call is required. Integration tests read the Arena files
 in `local-reports/` and are skipped automatically when those files are absent.
 Generated diagnostics are written to `local-reports/generated/`, which is
-ignored by git.
+ignored by git. `tests/server/mobileApi.integration.test.ts` runs the real mobile
+transport and decoders against a temporary server.
 
 ## Limitations
 
 - Designed for a single local user. There is no authentication or rate limiting.
-- The default AI provider is the deterministic mock. Gemini Flash is optional
-  and requires an API key and network access.
+- The default AI provider is the deterministic mock. Chat needs either Ollama
+  running locally or a Gemini key plus network access.
 - With Gemini enabled, report context and chat messages leave the machine. The
   free tier may use that content to improve Google's products.
-- A failed Gemini request is not retried automatically. The API returns a stable
+- Local model quality and speed depend on the laptop. Very long chats are capped
+  at the last 8 messages of history to keep prompt processing fast.
+- A failed AI request is not retried automatically. The API returns a stable
   error code instead of silently using stale data.
 - Responses are non-streaming.
+- The mobile app talks to a backend on your LAN over plain HTTP for local demos;
+  a production deployment would need HTTPS and authentication.
+- There is no account system or server-to-device sync. The report list on the
+  phone is that device's library, not every report on the server.
 - The parser targets the Arena report layouts covered by the tests. Unknown
   worksheet layouts produce warnings instead of silently inventing data.
