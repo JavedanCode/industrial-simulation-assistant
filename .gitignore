@@ -5,3 +5,5 @@ data/
 .DS_Store
 industrial-analysis-assistant.code-workspace
 local-reports/generated/
+# Scratch extraction of a workbook used while building the parser.
+local-reports/arena-debug/
