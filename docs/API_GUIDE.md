@@ -48,6 +48,12 @@ the provider. Changing providers requires a backend restart.
 interfaces, so no code change is needed. Allow Node through the Windows firewall
 for private networks the first time.
 
+In the app, this address is editable under Settings → **Backend connection**.
+That is the quickest way to point an installed build at a different computer:
+type `http://<LAN-IP>:3000/api` (or just `<LAN-IP>:3000`), then **Save and test**.
+The saved value lives on the phone; `EXPO_PUBLIC_API_URL` is only the default
+baked in at build time.
+
 ---
 
 ## 3. Endpoints
@@ -57,7 +63,7 @@ Every route is prefixed with `/api`. Unknown routes return `404` with
 
 ### `GET /api/health`
 
-Liveness check. Used by the app's **Settings → Test connection**.
+Liveness check. Used by the app's **Settings → Backend connection → Save and test**.
 
 ```json
 { "status": "ok" }
@@ -329,14 +335,18 @@ response to a server log line.
 
 **`Couldn’t reach the backend` from the phone**
 
-- `EXPO_PUBLIC_API_URL` must be the computer's LAN IP, not `localhost`.
+- Use the computer's LAN IP, not `localhost`.
+- Open Settings → **Backend connection** and check the address shown there. A
+  saved address wins over `EXPO_PUBLIC_API_URL`, so an old address from a
+  previous Wi-Fi network is a common cause.
 - Phone and computer on the same Wi-Fi, and the network is not "guest/isolated".
 - Allow Node through the Windows firewall on private networks.
 - VPNs (including Cloudflare WARP) can route or block LAN traffic. Disable them
   for the demo if the phone cannot connect.
 - Open `http://<LAN-IP>:3000/api/health` in the phone's browser to isolate app
   problems from network problems.
-- Changing `.env.local` requires an Expo reload (`r` in the CLI, or restart).
+- In Settings, **Use the built-in address** drops a saved override. Editing
+  `.env.local` still requires an Expo reload (`r` in the CLI, or restart).
 
 **Chat hangs or returns `AI_PROVIDER_TIMEOUT`**
 

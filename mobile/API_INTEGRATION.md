@@ -19,7 +19,9 @@ In `mobile/.env.local` set your computer's Wi-Fi IPv4 address:
 EXPO_PUBLIC_API_URL=http://192.168.1.35:3000/api
 ```
 
-This was the computer's address during integration. Check `ipconfig` if it changes. The phone and computer must be on the same reachable network. `localhost` on a phone points to the phone, not the computer. Reload Expo after changing the URL. Existing linked reports remember their API URL to avoid sending their IDs to a different backend.
+This was the computer's address during integration. Check `ipconfig` if it changes. The phone and computer must be on the same reachable network. `localhost` on a phone points to the phone, not the computer. Reload Expo after changing the file.
+
+The value in `.env.local` is only the build-time default. On a phone you can change it in Settings → Backend connection: type the address, tap **Save and test**, and the saved address overrides the built-in one on that device. A bare `192.168.1.35:3000` is accepted and completed to `/api`. **Use the built-in address** drops the override. Existing linked reports remember their API URL to avoid sending their IDs to a different backend; switching away from that address makes them read-only until you switch back.
 
 From `mobile`:
 
@@ -27,7 +29,7 @@ From `mobile`:
 npx expo start
 ```
 
-In Settings, tap **Test connection**. You can also open `http://<computer-IP>:3000/api/health` in the phone's browser; it should return `{"status":"ok"}`. If it fails, check the server, network/VPN routing, and Windows' private-network access for Node. A successful check on the computer alone does not prove phone connectivity.
+In Settings, tap **Save and test**. You can also open `http://<computer-IP>:3000/api/health` in the phone's browser; it should return `{"status":"ok"}`. If it fails, check the server, network/VPN routing, and Windows' private-network access for Node. A successful check on the computer alone does not prove phone connectivity.
 
 ## End-to-end device checks
 
@@ -54,10 +56,6 @@ In Settings, tap **Test connection**. You can also open `http://<computer-IP>:30
 
 From the root: `npm run typecheck`, `npm test`, and `npm run build`.
 
-From `mobile`: `npx tsc --noEmit`, `npx expo lint`, and:
-
-```cmd
-node --test scripts/test-report-storage.cjs scripts/test-chat-storage.cjs scripts/test-analysis-format.cjs scripts/test-history-reconciliation.cjs
-```
+From `mobile`: `npm test`, `npx tsc --noEmit`, and `npx expo lint`.
 
 `tests/server/mobileApi.integration.test.ts` runs the real mobile transport/decoders against a temporary HTTP server and SQLite database. It covers valid/invalid uploads, analysis presentation, request replay after SQLite reopen, chat failure/retry, history, timeout, and invalid response shapes. It does not replace phone testing of the native picker, file URI upload, or keyboard.

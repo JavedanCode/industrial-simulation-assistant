@@ -34,7 +34,8 @@ mobile/ (Expo, Android/iOS)  ->  backend (Express, Node 24)  ->  AI provider
 - For chat: either [Ollama](https://ollama.com/download) (local) or a Gemini API
   key (cloud). `AI_PROVIDER=mock` needs neither.
 - For the phone app: Expo Go on the device, on the same Wi-Fi network as this
-  computer.
+  computer. An installable APK can be built with EAS (see
+  [mobile/README.md](mobile/README.md#7-build-an-installable-app-eas)).
 
 ## Quick start
 
@@ -69,7 +70,8 @@ npx expo start
 ```
 
 Scan the QR code with Expo Go. `localhost` on a phone points at the phone, so
-`EXPO_PUBLIC_API_URL` must be `http://<computer-LAN-IP>:3000/api`. See
+`EXPO_PUBLIC_API_URL` must be `http://<computer-LAN-IP>:3000/api`. You can also
+leave it unset and type the address in Settings after the app starts. See
 [mobile/API_INTEGRATION.md](mobile/API_INTEGRATION.md) for the full phone
 checklist and [docs/API_GUIDE.md](docs/API_GUIDE.md) for the HTTP contract.
 
@@ -445,6 +447,33 @@ Start it with `npx expo start` from `mobile/` and open it in Expo Go. Set
 `EXPO_PUBLIC_API_URL` in `mobile/.env.local` to this computer's LAN address.
 Full device checklist: [mobile/API_INTEGRATION.md](mobile/API_INTEGRATION.md).
 
+The backend address can also be changed inside the app under Settings →
+**Backend connection**; a saved address overrides the build-time one, so an
+installed build survives a changed LAN IP. Existing reports stay tied to the
+backend that analysed them.
+
+### Build an installable Android app
+
+`mobile/eas.json` defines a `preview` profile (internal APK) and a `production`
+profile. EAS builds in the cloud, so no Android Studio is needed. After a
+one-time `npx eas-cli@latest login` and `npx eas-cli@latest build:configure`,
+set the default address for cloud builds (`.env.local` is git-ignored and is not
+uploaded):
+
+```bash
+cd mobile
+npx eas-cli@latest env:set --name EXPO_PUBLIC_API_URL \
+  --value http://<computer-LAN-IP>:3000/api --environment preview \
+  --visibility plaintext
+npx eas-cli@latest build --platform android --profile preview
+```
+
+Scan the build's QR code on the phone to install the APK. App identity is
+`Simulation Assistant` / `com.soren.industrialassistant`. See
+[mobile/README.md](mobile/README.md#7-build-an-installable-app-eas) for details.
+An iOS installable build requires the paid Apple Developer Program; EAS still
+builds it in the cloud without a Mac.
+
 ## Tests
 
 Backend:
@@ -459,9 +488,10 @@ Mobile:
 
 ```bash
 cd mobile
+npm test
 npx tsc --noEmit
 npx expo lint
-node --test scripts/test-report-storage.cjs scripts/test-chat-storage.cjs scripts/test-analysis-format.cjs scripts/test-history-reconciliation.cjs scripts/test-native-upload.cjs
+npx expo-doctor
 ```
 
 Backend tests use an in-memory SQLite database and inject a fake `fetch`, so no
