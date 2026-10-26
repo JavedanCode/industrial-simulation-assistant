@@ -99,7 +99,7 @@ export default function SettingsScreen() {
           </ThemedView>
           <ThemedView type="backgroundElement" style={styles.card}>
             <ThemedText type="smallBold">About</ThemedText>
-            <ThemedText>Industrial Report Assistant</ThemedText>
+            <ThemedText>Industrial Simulation Assistant</ThemedText>
             <ThemedText themeColor="textSecondary">
               Version {Constants.expoConfig?.version ?? "Unknown"}
             </ThemedText>

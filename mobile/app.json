@@ -1,16 +1,20 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "Simulation Assistant",
+    "slug": "industrial-simulation-assistant",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mobile",
+    "scheme": "simassistant",
     "userInterfaceStyle": "automatic",
     "ios": {
+      "bundleIdentifier": "com.soren.industrialassistant",
+      "buildNumber": "1",
       "icon": "./assets/expo.icon"
     },
     "android": {
+      "package": "com.soren.industrialassistant",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
