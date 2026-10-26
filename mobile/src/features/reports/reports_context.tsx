@@ -110,7 +110,7 @@ export function ReportsProvider({ children }: { children: ReactNode }) {
       const apiUrl = getApiUrl();
       if (sync.apiUrl && sync.apiUrl !== apiUrl)
         throw new Error(
-          `This report belongs to ${sync.apiUrl}. Restore that API address before retrying.`,
+          `This report belongs to ${sync.apiUrl}. Restore that address in Settings before retrying.`,
         );
       sync = { ...sync, apiUrl, error: null };
       await update("processing");

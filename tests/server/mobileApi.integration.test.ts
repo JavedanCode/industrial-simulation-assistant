@@ -189,7 +189,7 @@ describe("mobile API integration", () => {
       }),
     ).toThrow();
     expect(() => mobileModules(fetch, "").client.getApiUrl()).toThrow(
-      /EXPO_PUBLIC_API_URL/,
+      /backend address in Settings/,
     );
     const hangingFetch = ((_url: unknown, options: RequestInit) =>
       new Promise((_resolve, reject) =>

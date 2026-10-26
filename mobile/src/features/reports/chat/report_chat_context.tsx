@@ -207,7 +207,7 @@ export function ReportChatProvider({ children }: { children: ReactNode }) {
       );
     if (report.sync.apiUrl !== getApiUrl())
       throw new Error(
-        "This report belongs to a different API address. Restore the original address in mobile/.env.local.",
+        "This report belongs to a different API address. Restore the original address in Settings.",
       );
     return report.sync.conversationId;
   }

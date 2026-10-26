@@ -1,37 +1,8 @@
-export class ApiError extends Error {
-  constructor(
-    message: string,
-    public status = 0,
-    public code?: string,
-  ) {
-    super(message);
-  }
-}
+import { getApiUrl } from "./api_url";
+import { ApiError } from "./errors";
 
-export function getApiUrl(): string {
-  const value = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/+$/, "");
-  if (!value)
-    throw new ApiError(
-      "Set EXPO_PUBLIC_API_URL in mobile/.env.local, then reload the app.",
-    );
-  let url: URL;
-  try {
-    url = new URL(value);
-  } catch {
-    throw new ApiError("EXPO_PUBLIC_API_URL is not a valid URL.");
-  }
-  if (
-    !["http:", "https:"].includes(url.protocol) ||
-    url.username ||
-    url.password ||
-    url.search ||
-    url.hash
-  )
-    throw new ApiError(
-      "The API URL must be an HTTP(S) address without credentials, query, or fragment.",
-    );
-  return value;
-}
+export { ApiError } from "./errors";
+export { getApiUrl } from "./api_url";
 
 type Options = {
   method?: string;
