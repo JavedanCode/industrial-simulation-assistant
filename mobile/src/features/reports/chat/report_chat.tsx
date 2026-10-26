@@ -4,9 +4,11 @@ import {
   memo,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type RefObject,
+  type ComponentRef,
 } from "react";
 import {
   ActivityIndicator,
@@ -70,6 +72,27 @@ export function ReportChat({ reportId }: ReportChatProps) {
     pendingMsgId,
   } = getConversation(reportId);
   const [inputHeight, setInputHeight] = useState(MIN_INPUT_HEIGHT);
+  const [inputFocused, setInputFocused] = useState(false);
+  const inputRef = useRef<ComponentRef<typeof TextInput>>(null);
+  const inputWidthRef = useRef(0);
+
+  const resizeWebInput = useCallback(() => {
+    if (Platform.OS !== "web") return;
+    // React Native Web forwards this ref to the underlying textarea.
+    const input = inputRef.current as unknown as HTMLTextAreaElement | null;
+    if (!input) return;
+    // scrollHeight cannot shrink below the current height. Clear that height
+    // before measuring, then restore the bounded size before the browser paints.
+    input.style.height = "0px";
+    const height =
+      input.value.length === 0 ? MIN_INPUT_HEIGHT : input.scrollHeight;
+    input.style.height = `${Math.min(MAX_INPUT_HEIGHT, Math.max(MIN_INPUT_HEIGHT, height))}px`;
+  }, []);
+
+  useLayoutEffect(() => {
+    resizeWebInput();
+  }, [draft, storageStatus, resizeWebInput]);
+
   const listRef = useRef<FlatList<chatMsg>>(null);
   const followLatestRef = useRef(false);
   const canSend =
@@ -194,8 +217,36 @@ export function ReportChat({ reportId }: ReportChatProps) {
             </Pressable>
           </ThemedView>
         )}
-        <ThemedView type="backgroundElement" style={styles.inputRow}>
+        <ThemedView
+          type="backgroundElement"
+          style={[
+            styles.inputRow,
+            Platform.OS === "web" && {
+              // Keep the border space reserved so focusing never shifts the input.
+              borderWidth: 1,
+              borderColor: inputFocused ? theme.textSecondary : "transparent",
+            },
+          ]}
+        >
           <TextInput
+            ref={inputRef}
+            onFocus={
+              Platform.OS === "web" ? () => setInputFocused(true) : undefined
+            }
+            onBlur={
+              Platform.OS === "web" ? () => setInputFocused(false) : undefined
+            }
+            onLayout={
+              Platform.OS === "web"
+                ? ({ nativeEvent }) => {
+                    // Re-measure wrapped lines when the browser window changes width.
+                    if (inputWidthRef.current !== nativeEvent.layout.width) {
+                      inputWidthRef.current = nativeEvent.layout.width;
+                      resizeWebInput();
+                    }
+                  }
+                : undefined
+            }
             accessibilityLabel="Message about this report"
             placeholder="Ask about this report..."
             placeholderTextColor={theme.textSecondary}
@@ -233,21 +284,30 @@ export function ReportChat({ reportId }: ReportChatProps) {
                 : undefined
             }
             scrollEnabled
-            onContentSizeChange={({ nativeEvent }) => {
-              setInputHeight(
-                Math.min(
-                  MAX_INPUT_HEIGHT,
-                  Math.max(MIN_INPUT_HEIGHT, nativeEvent.contentSize.height),
-                ),
-              );
-            }}
+            onContentSizeChange={
+              Platform.OS === "web"
+                ? undefined
+                : ({ nativeEvent }) => {
+                    setInputHeight(
+                      Math.min(
+                        MAX_INPUT_HEIGHT,
+                        Math.max(
+                          MIN_INPUT_HEIGHT,
+                          nativeEvent.contentSize.height,
+                        ),
+                      ),
+                    );
+                  }
+            }
             maxLength={MAX_MSG_LENGTH}
             textAlignVertical="top"
             style={[
               styles.input,
+              // The rounded composer now provides the visible focus indicator.
+              Platform.OS === "web" && { outlineWidth: 0 },
               {
                 color: theme.text,
-                height: inputHeight,
+                height: Platform.OS === "web" ? undefined : inputHeight,
               },
             ]}
           />
